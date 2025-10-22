@@ -1,9 +1,22 @@
 import { css } from "styled-components";
-import { Interpolation, Styles } from "styled-components/dist/types";
+import { Interpolation } from "styled-components/dist/types";
 
-type Breakpoints<T extends string> = Record<T, number>;
-type MediaGroup = Record<"min" | "max" | "exact", typeof css>;
-export type ThemeWithMedia<T extends string> = { media: Record<T, MediaGroup> };
+type Breakpoints<T extends string> = Readonly<Record<T, number>>;
+type MediaGroup = Readonly<Record<"min" | "max" | "exact", typeof css>>;
+export type ThemeWithMedia<T extends string> = {
+  readonly media: Readonly<Record<T, MediaGroup>>;
+};
+
+export type DefaultBreakpointKey = "xs" | "sm" | "md" | "lg" | "xl";
+export type DefaultBreakpoints = Breakpoints<DefaultBreakpointKey>;
+
+export const DEFAULT_BREAKPOINTS: DefaultBreakpoints = {
+  xs: 0,
+  sm: 576,
+  md: 768,
+  lg: 992,
+  xl: 1280,
+};
 
 export const sortBreakpointKeys = <T extends string>(
   breakpoints: Breakpoints<T>,
@@ -12,44 +25,41 @@ export const sortBreakpointKeys = <T extends string>(
     (a, b) => breakpoints[a] - breakpoints[b],
   );
 
+type MediaQueryOptions = {
+  min?: number;
+  max?: number;
+};
+
+type MediaQueryFn = (
+  styles: TemplateStringsArray,
+  ...interpolations: Interpolation<object>[]
+) => ReturnType<typeof css>;
+
+const createMediaQuery = (query: string): MediaQueryFn => (
+  styles,
+  ...interpolations
+) => css`
+  @media ${query} {
+    ${css(styles, ...interpolations)}
+  }
+`;
+
 export function mediaQuery({
   min,
   max,
-}: {
-  min?: number;
-  max?: number;
-}): typeof css {
-  if (min && max) {
-    return ((
-      styles: Styles<object>,
-      ...interpolations: Interpolation<object>[]
-    ) => css`
-      @media (min-width: ${min}px) and (max-width: ${max}px) {
-        ${css(styles, ...interpolations)}
-      }
-    `) as typeof css;
+}: MediaQueryOptions): typeof css {
+  if (min !== undefined && max !== undefined) {
+    return createMediaQuery(
+      `(min-width: ${min}px) and (max-width: ${max}px)`,
+    ) as typeof css;
   }
 
-  if (min) {
-    return ((
-      styles: Styles<object>,
-      ...interpolations: Interpolation<object>[]
-    ) => css`
-      @media (min-width: ${min}px) {
-        ${css(styles, ...interpolations)}
-      }
-    `) as typeof css;
+  if (min !== undefined) {
+    return createMediaQuery(`(min-width: ${min}px)`) as typeof css;
   }
 
-  if (max) {
-    return ((
-      styles: Styles<object>,
-      ...interpolations: Interpolation<object>[]
-    ) => css`
-      @media (max-width: ${max}px) {
-        ${css(styles, ...interpolations)}
-      }
-    `) as typeof css;
+  if (max !== undefined) {
+    return createMediaQuery(`(max-width: ${max}px)`) as typeof css;
   }
 
   return css;

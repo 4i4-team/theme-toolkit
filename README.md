@@ -15,29 +15,30 @@ yarn add @4i4/theme-toolkit
 ```ts
 import {
   DEFAULT_BREAKPOINTS,
-  media,
   container,
   buildColumn,
   buildPalettes,
   buildButtons,
+  createTheme,
 } from "@4i4/theme-toolkit";
 
-const breakpoints = DEFAULT_BREAKPOINTS;
-
-const theme = {
-  media: media(breakpoints),
-  container: container(breakpoints),
-  column: buildColumn(12, breakpoints),
+const theme = createTheme({
+  breakpoints: DEFAULT_BREAKPOINTS,
+  container: container(DEFAULT_BREAKPOINTS),
+  column: buildColumn(12, DEFAULT_BREAKPOINTS),
   palettes: buildPalettes({
     primary: { main: "#2251ff", text: "#ffffff" },
   }),
   buttons: buildButtons(["primary"]),
-};
+});
 ```
+
+`createTheme` wires a getter so `theme.media` always reflects the current `theme.breakpoints`. If you prefer manual control, call `media(breakpoints)` directly and assign it yourself.
 
 ## Modules
 
 - **media-query** – breakpoint utilities (`DEFAULT_BREAKPOINTS`, `mediaQuery`, `media`), plus container helpers.
+- **theme** – utilities for composing themes (`createTheme`).
 - **grid** – grid utilities (`container`, `buildColumn`, `buildBreakpointColumnSizes`, `columnSizes`).
 - **colors** – color transforms (`convertHexToRGB`, `lighten`, `buildPalettes`, etc.).
 
@@ -60,11 +61,11 @@ Default palette utilities expect the CSS variables produced by `buildPalettes`; 
 
 ```ts
 import styled from "styled-components";
-import { DEFAULT_BREAKPOINTS, media } from "@4i4/theme-toolkit";
+import { DEFAULT_BREAKPOINTS, createTheme } from "@4i4/theme-toolkit";
 
-const theme = {
-  media: media(DEFAULT_BREAKPOINTS),
-};
+const theme = createTheme({
+  breakpoints: DEFAULT_BREAKPOINTS,
+});
 
 export const Wrapper = styled.div`
   padding: 16px;
@@ -90,6 +91,8 @@ theme.media.between("sm", "lg", { orientation: "portrait" })`
 `;
 ```
 
+`createTheme` wires a getter so `theme.media` always reflects the current `theme.breakpoints`. Override the breakpoint map in derived themes and the helper updates automatically.
+
 Each breakpoint exposes `min`, `max`, and `exact` functions, so responsive tweaks can stay declarative inside styled-components. Use whichever syntax reads best—`theme.media.sm.min`/`max`/`exact` for per-breakpoint chaining or the global helpers `theme.media.min(key)`, `theme.media.max(key)`, and `theme.media.between(from, to)` (each accepts an optional `{ orientation: 'portrait' | 'landscape' }`).
 
 For ad-hoc situations, `mediaQuery({ min, max })` is also exported so you can build a single media query without wiring it into the theme:
@@ -114,7 +117,7 @@ Grid helpers build on the media utilities to create responsive column layouts.
 import styled from "styled-components";
 import {
   DEFAULT_BREAKPOINTS,
-  media,
+  createTheme,
   container,
   buildColumn,
   columnSizes,
@@ -122,12 +125,12 @@ import {
 
 const breakpoints = DEFAULT_BREAKPOINTS;
 
-export const Theme = {
-  media: media(breakpoints),
+export const Theme = createTheme({
+  breakpoints,
   container: container(breakpoints),
   column: buildColumn(12, breakpoints),
   columnSizes: columnSizes(12),
-};
+});
 
 export const Container = styled.div`
   ${({ theme }) => theme.container}
@@ -151,12 +154,15 @@ Extend your `DefaultTheme` to include the helpers you consume:
 
 ```ts
 import "styled-components";
-import type { DefaultBreakpoints } from "@4i4/theme-toolkit";
+import type {
+  DefaultBreakpoints,
+  MediaHelpers,
+} from "@4i4/theme-toolkit";
 
 declare module "styled-components" {
   // adjust the palette/button typing to your project needs
   interface DefaultTheme {
-    media: ReturnType<typeof import("@4i4/theme-toolkit").media<keyof DefaultBreakpoints>>;
+    media: MediaHelpers<keyof DefaultBreakpoints>;
     container: ReturnType<typeof import("@4i4/theme-toolkit").container<keyof DefaultBreakpoints>>;
     column: ReturnType<typeof import("@4i4/theme-toolkit").buildColumn<keyof DefaultBreakpoints>>;
     palettes: ReturnType<typeof import("@4i4/theme-toolkit").buildPalettes>;
@@ -186,11 +192,11 @@ const BREAKPOINTS = {
   desktop: 1024,
 } as const;
 
-const theme = {
-  media: media(BREAKPOINTS),
+const theme = createTheme({
+  breakpoints: BREAKPOINTS,
   container: container(BREAKPOINTS),
   column: buildColumn(12, BREAKPOINTS),
-};
+});
 ```
 
 Any string keys are supported; they flow through to `theme.media.<key>` and the generated grid class names.

@@ -30,7 +30,7 @@ export function container<T extends string>(
         width = `${width}px`;
       }
 
-      return themed.media[key].min`
+      return themed.media[key].min.css`
         --container-width: ${width};
       `;
     }}
@@ -66,7 +66,7 @@ export function buildBreakpointColumnSizes<T extends string>(
     ${({ theme }) => {
       const themed = theme as ThemeWithMedia<T>;
 
-      return themed.media[breakpoint].min`
+      return themed.media[breakpoint].min.css`
         ${mergeRules(rules)}
       `;
     }}

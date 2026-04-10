@@ -70,7 +70,12 @@ Default palette utilities expect the CSS variables produced by `buildPalettes`; 
 
 ```ts
 import styled from "styled-components";
-import { DEFAULT_BREAKPOINTS, createTheme, media } from "@4i4/theme-toolkit";
+import {
+  DEFAULT_BREAKPOINTS,
+  createTheme,
+  media,
+  mediaQuery,
+} from "@4i4/theme-toolkit";
 
 const theme = createTheme({
   breakpoints: DEFAULT_BREAKPOINTS,
@@ -99,6 +104,9 @@ theme.media.between("sm", "lg", { orientation: "portrait" })`
   flex-direction: column;
 `;
 
+// String form if you need to plug into another CSS-in-JS system
+const portraitQuery = theme.media.sm.max.query;
+
 // Manual helpers can opt into em/rem directly
 const emMedia = media(DEFAULT_BREAKPOINTS, {
   unit: "em",
@@ -108,7 +116,7 @@ const emMedia = media(DEFAULT_BREAKPOINTS, {
 
 `createTheme` wires a getter so `theme.media` always reflects the current `theme.breakpoints`. Override the breakpoint map in derived themes and the helper updates automatically.
 
-Each breakpoint exposes `min`, `max`, and `exact` functions, so responsive tweaks can stay declarative inside styled-components. Use whichever syntax reads best—`theme.media.sm.min`/`max`/`exact` for per-breakpoint chaining or the global helpers `theme.media.min(key)`, `theme.media.max(key)`, and `theme.media.between(from, to)` (each accepts an optional `{ orientation: 'portrait' | 'landscape' }`). Configure width units globally with `media(breakpoints, { unit: 'em' | 'rem', baseFontSize })` or let `createTheme` infer the base from `typography.rootFontSize`.
+Each breakpoint exposes `min`, `max`, and `exact` functions that now double as tagged templates (for styled-components) and expose their raw `@media` string via the `.query` property. Use whichever syntax reads best—`theme.media.sm.min`/`max`/`exact` for per-breakpoint chaining or the global helpers `theme.media.min(key)`, `theme.media.max(key)`, and `theme.media.between(from, to)` (each accepts an optional `{ orientation: 'portrait' | 'landscape' }`). Configure width units globally with `media(breakpoints, { unit: 'em' | 'rem', baseFontSize })` or let `createTheme` infer the base from `typography.rootFontSize`.
 
 For ad-hoc situations, `mediaQuery({ min, max })` is also exported so you can build a single media query without wiring it into the theme:
 
@@ -116,11 +124,14 @@ For ad-hoc situations, `mediaQuery({ min, max })` is also exported so you can bu
 import { css } from "styled-components";
 import { mediaQuery } from "@4i4/theme-toolkit";
 
+const rule = mediaQuery({ min: 768, orientation: "landscape" }, { unit: "em" });
+
 const threeColumn = css`
   display: grid;
-  ${mediaQuery({ min: 768, orientation: "landscape" }, { unit: "em" })`
+
+  ${rule} {
     grid-template-columns: repeat(3, 1fr);
-  `}
+  }
 `;
 ```
 

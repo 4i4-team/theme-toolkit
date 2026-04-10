@@ -2,7 +2,12 @@ import { css } from "styled-components";
 import { Interpolation } from "styled-components/dist/types";
 
 type Breakpoints<T extends string> = Readonly<Record<T, number>>;
-type MediaGroup = Readonly<Record<"min" | "max" | "exact", typeof css>>;
+type MediaTemplate = (
+  styles: TemplateStringsArray,
+  ...interpolations: Interpolation<object>[]
+) => ReturnType<typeof css>;
+type MediaEntry = MediaTemplate & { readonly query: string };
+type MediaGroup = Readonly<Record<"min" | "max" | "exact", MediaEntry>>;
 export type ThemeWithMedia<T extends string> = {
   readonly media: MediaHelpers<T>;
 };
@@ -59,16 +64,16 @@ export type MediaHelpers<T extends string> = Readonly<
     readonly min: (
       key: T,
       options?: MediaQueryOrientationOptions,
-    ) => typeof css;
+    ) => MediaEntry;
     readonly max: (
       key: T,
       options?: MediaQueryOrientationOptions,
-    ) => typeof css;
+    ) => MediaEntry;
     readonly between: (
       from: T,
       to: T,
       options?: MediaQueryOrientationOptions,
-    ) => typeof css;
+    ) => MediaEntry;
   }
 >;
 
@@ -87,7 +92,7 @@ const formatWidth = (value: number, config: Required<MediaConfig>): string => {
   return `${trimmed}${config.unit}`;
 };
 
-const createMediaQuery = (query: string): MediaQueryFn => (
+const createMediaQueryTemplate = (query: string): MediaTemplate => (
   styles,
   ...interpolations
 ) => css`
@@ -99,7 +104,7 @@ const createMediaQuery = (query: string): MediaQueryFn => (
 export function mediaQuery(
   { min, max, orientation }: MediaQueryOptions,
   config?: MediaConfig,
-): typeof css {
+): string {
   const clauses: string[] = [];
   const resolvedConfig = normalizeMediaConfig(config);
 
@@ -122,11 +127,34 @@ export function mediaQuery(
   }
 
   if (!clauses.length) {
-    return css;
+    return "";
   }
 
-  return createMediaQuery(clauses.join(" and ")) as typeof css;
+  return `@media ${clauses.join(" and ")}`;
 }
+
+const styledMediaQuery = (
+  options: MediaQueryOptions,
+  config?: MediaConfig,
+): MediaTemplate => {
+  const query = mediaQuery(options, config);
+  if (!query) {
+    return ((styles, ...interpolations) => css`
+      ${css(styles, ...interpolations)}
+    `) as MediaTemplate;
+  }
+
+  return createMediaQueryTemplate(query);
+};
+
+const buildMediaEntry = (
+  options: MediaQueryOptions,
+  config?: MediaConfig,
+): MediaEntry => {
+  const query = mediaQuery(options, config);
+  const template = styledMediaQuery(options, config);
+  return Object.assign(template, { query }) as MediaEntry;
+};
 
 export function breakpoint({
   min,
@@ -138,9 +166,9 @@ export function breakpoint({
   config?: MediaConfig;
 }): MediaGroup {
   return {
-    min: mediaQuery({ min }, config),
-    max: mediaQuery({ max }, config),
-    exact: mediaQuery({ min, max }, config),
+    min: buildMediaEntry({ min }, config),
+    max: buildMediaEntry({ max }, config),
+    exact: buildMediaEntry({ min, max }, config),
   };
 }
 
@@ -175,7 +203,7 @@ export function media<T extends string>(
     from: T,
     to: T,
     options?: MediaQueryOrientationOptions,
-  ): typeof css => {
+  ): MediaEntry => {
     const min = breakpoints[from];
     const max = breakpoints[to];
 
@@ -185,7 +213,7 @@ export function media<T extends string>(
       );
     }
 
-    return mediaQuery({ min, max, ...options }, resolvedConfig);
+    return buildMediaEntry({ min, max, ...options }, resolvedConfig);
   };
 
   return Object.assign(mediaGroups, {
@@ -194,14 +222,14 @@ export function media<T extends string>(
         return resolveKey(key).min;
       }
 
-      return mediaQuery({ min: breakpoints[key], ...options }, resolvedConfig);
+      return buildMediaEntry({ min: breakpoints[key], ...options }, resolvedConfig);
     },
     max: (key: T, options?: MediaQueryOrientationOptions) => {
       if (!options) {
         return resolveKey(key).max;
       }
 
-      return mediaQuery({ max: breakpoints[key], ...options }, resolvedConfig);
+      return buildMediaEntry({ max: breakpoints[key], ...options }, resolvedConfig);
     },
     between,
   }) as MediaHelpers<T>;

@@ -30,6 +30,7 @@ const theme = createTheme({
       steps: [50, 100, 200, 300, 400, 500, 600],
     },
   },
+  typography: minimalTypography,
   container: container(DEFAULT_BREAKPOINTS),
   column: buildColumn(12, DEFAULT_BREAKPOINTS),
   buttons: buildButtons(["primary"]),
@@ -39,16 +40,22 @@ const theme = createTheme({
 const remTheme = createTheme(
   {
     breakpoints: DEFAULT_BREAKPOINTS,
-    typography: { rootFontSize: 18 },
+    typography: {
+      ...minimalTypography,
+      scale: {
+        ...minimalTypography.scale,
+        baseFontSize: 18,
+      },
+    },
     palette: {
       primary: { base: "#2251ff", text: "#fff" },
     },
   },
-  { media: { unit: "rem" }, palette: { prefix: "--brand" } },
+  { media: { unit: "rem" }, palette: { prefix: "--brand" }, typography: { unit: "rem" } },
 );
 ```
 
-`createTheme` wires getters so `theme.media` always reflects the current `theme.breakpoints` (and typography base size) and `theme.paletteTokens`/`theme.paletteCSS` stay in sync with the palette source. Override the breakpoint map or palette in derived themes and the helpers update automatically.
+`createTheme` wires getters so `theme.media` always reflects the current `theme.breakpoints` (and typography base size) and `theme.paletteTokens`/`theme.paletteCSS` stay in sync with the palette source. Override the breakpoint map or palette in derived themes and the helpers update automatically. Typographic mixins follow the same pattern using `theme.typographyMixin(group, variant)`.
 
 ## Modules
 
@@ -72,6 +79,122 @@ The `colors` module exposes helper functions for palette composition and color t
 - `buildButtons(types)`: derive button class helpers (`.btn-primary`, `.btn-primary-hollow`, etc.) that rely on your CSS variables.
 
 Default palette utilities expect the CSS variables produced by `buildPaletteTokens`; override or extend them to match your theme naming conventions.
+
+## Typography
+
+Provide a typography data source to drive modular scales, font families, and semantic text styles.
+
+```ts
+import { buildTypographyTokens } from "@4i4/theme-toolkit";
+
+const minimalTypography = {
+  families: {
+    base: "Inter, sans-serif",
+    heading: "Inter, sans-serif",
+    mono: "JetBrains Mono, monospace",
+  },
+  weights: {
+    regular: 400,
+    medium: 500,
+    semibold: 600,
+    bold: 700,
+  },
+  lineHeights: {
+    tight: 1.2,
+    normal: 1.5,
+    relaxed: 1.7,
+  },
+  letterSpacings: {
+    tighter: "-0.02em",
+    normal: "0",
+    wide: "0.02em",
+  },
+  scale: {
+    baseFontSize: 16,
+    ratio: "major-third",
+    unit: "rem",
+  },
+  styles: {
+    body: {
+      md: {
+        family: "base",
+        size: "md",
+        weight: "regular",
+        lineHeight: "normal",
+        letterSpacing: "normal",
+        responsive: [
+          { breakpoint: "sm", size: "sm", query: "max" },
+          { breakpoint: "lg", size: "lg", query: "min" },
+        ],
+      },
+    },
+  },
+};
+
+const fullTypography = {
+  ...minimalTypography,
+  scale: {
+    ...minimalTypography.scale,
+    precision: 4,
+    steps: {
+      xs: -2,
+      sm: -1,
+      md: 0,
+      lg: 1,
+      xl: 2,
+      "2xl": 3,
+      "3xl": 4,
+      "4xl": 5,
+    },
+    variants: {
+      md: 18,
+      lg: 22,
+    },
+  },
+  styles: {
+    ...minimalTypography.styles,
+    heading: {
+      h1: {
+        family: "heading",
+        size: "4xl",
+        weight: "bold",
+        lineHeight: "tight",
+        letterSpacing: "tighter",
+      },
+      h2: {
+        family: "heading",
+        size: "3xl",
+        weight: "bold",
+        lineHeight: "tight",
+        letterSpacing: "tighter",
+      },
+    },
+    label: {
+      sm: {
+        family: "base",
+        size: "xs",
+        weight: "medium",
+        lineHeight: "normal",
+        letterSpacing: "wide",
+      },
+    },
+    code: {
+      md: {
+        family: "mono",
+        size: "sm",
+        weight: "regular",
+        lineHeight: "normal",
+        letterSpacing: "normal",
+      },
+    },
+  },
+};
+
+const typography = buildTypographyTokens(fullTypography);
+const typographyCSS = serializeTypographyToCSS(typography);
+```
+
+Use the tokens to inject CSS variables or drive styled-components mixins. Control whether the generated scale uses `px` or `rem` via `createTheme(..., { typography: { unit: 'rem' } })`, and apply the CSS variables with `typographyCSS` or `theme.typographyCSS`. Include optional `responsive` entries per style to alter size/weight/line-height at specific breakpoints (`query` accepts `min`, `max`, or `exact`).
 
 ## Media Helpers Example
 
@@ -129,6 +252,7 @@ const emMedia = media(DEFAULT_BREAKPOINTS, {
 const GlobalStyles = createGlobalStyle`
   :root {
     ${({ theme }) => theme.paletteCSS}
+    ${({ theme }) => theme.typographyCSS}
   }
 `;
 
@@ -137,7 +261,45 @@ const Button = styled.button`
   background: ${({ theme }) => theme.darkenColor("primary", 10)};
   color: ${({ theme }) => theme.lightenColor("primary", 60)};
 `;
+
+// Typography mixins
+const Heading = styled.h1`
+  ${({ theme }) => theme.typographyMixin("heading", "h1")}
+  // Responsive adjustments configured in the typography source apply automatically
+`;
+
 ```
+
+### `createTheme` Inputs
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `breakpoints` | `Record<string, number>` | Named viewport widths used by the media helpers. |
+| `palette` | `Record<string, PaletteSource>` | Color data sources consumed by `buildPaletteTokens`. |
+| `typography` | `TypographySource` | Typography data source (families, scale, styles). |
+| `container`, `column`, etc. | Styled-components mixins | Optional helpers you pass through untouched. |
+
+`createTheme` also accepts an options object mirroring each subsystem:
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `media.unit` | `px` | Output unit for breakpoint helpers (`px`, `em`, `rem`). |
+| `media.baseFontSize` | inferred from typography or `16` | Root font size for rem/em conversions. |
+| `palette.prefix` | `--dt` | Prefix for palette CSS variables. |
+| `typography.unit` | `px` | Unit for typography scale values (`px` or `rem`). |
+| `typography.prefix` | `--dt` | Prefix for typography CSS variables. |
+
+### `createTheme` Outputs
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `media` | `MediaHelpers` | Tagged template helpers (`theme.media.sm.min`, `.max`, `.between`) with `.query`. |
+| `paletteTokens` | `Record<string, PaletteTokens>` | Normalized palette tokens for programmatic consumption. |
+| `paletteCSS` | `string` | CSS custom properties derived from the palette tokens. |
+| `lightenColor` / `darkenColor` | `(name, percent) => string` | Palette-aware color adjustments using the base color for `name`. |
+| `typographyTokens` | `TypographyTokens` | Normalized typography tokens (families, scale, styles). |
+| `typographyCSS` | `string` | CSS variables for typography (font families, sizes, etc.). |
+| `typographyMixin` | `(group, variant) => css` | Styled-components fragment for semantic typography styles (honors any `responsive` overrides defined in the typography source). |
 
 Each breakpoint exposes `min`, `max`, and `exact` functions that now double as tagged templates (for styled-components) and expose their raw `@media` string via the `.query` property. Use whichever syntax reads best—`theme.media.sm.min`/`max`/`exact` for per-breakpoint chaining or the global helpers `theme.media.min(key)`, `theme.media.max(key)`, and `theme.media.between(from, to)` (each accepts an optional `{ orientation: 'portrait' | 'landscape' }`). Configure width units globally with `media(breakpoints, { unit: 'em' | 'rem', baseFontSize })` or let `createTheme` infer the base from `typography.rootFontSize`.
 
@@ -207,6 +369,7 @@ import type {
   DefaultBreakpoints,
   MediaHelpers,
   PaletteTokens,
+  TypographyTokens,
 } from "@4i4/theme-toolkit";
 
 declare module "styled-components" {
@@ -219,6 +382,12 @@ declare module "styled-components" {
     paletteCSS: string;
     lightenColor: (name: string, percent: number) => string;
     darkenColor: (name: string, percent: number) => string;
+    typographyTokens?: TypographyTokens;
+    typographyCSS: string;
+    typographyMixin: (
+      group: string,
+      variant: string,
+    ) => ReturnType<typeof import("@4i4/theme-toolkit").typographyMixin>;
     buttons: ReturnType<typeof import("@4i4/theme-toolkit").buildButtons>;
   }
 }

@@ -7,6 +7,27 @@ export type ThemeWithMedia<T extends string> = {
   readonly media: MediaHelpers<T>;
 };
 
+export type MediaUnit = "px" | "em" | "rem";
+export type MediaConfig = {
+  unit?: MediaUnit;
+  baseFontSize?: number;
+};
+
+const DEFAULT_MEDIA_CONFIG: Required<MediaConfig> = {
+  unit: "px",
+  baseFontSize: 16,
+};
+
+const normalizeMediaConfig = (
+  config?: MediaConfig,
+): Required<MediaConfig> => ({
+  unit: config?.unit ?? DEFAULT_MEDIA_CONFIG.unit,
+  baseFontSize:
+    config?.baseFontSize && config.baseFontSize > 0
+      ? config.baseFontSize
+      : DEFAULT_MEDIA_CONFIG.baseFontSize,
+});
+
 export type DefaultBreakpointKey = "xs" | "sm" | "md" | "lg" | "xl";
 export type DefaultBreakpoints = Breakpoints<DefaultBreakpointKey>;
 
@@ -56,6 +77,16 @@ type MediaQueryFn = (
   ...interpolations: Interpolation<object>[]
 ) => ReturnType<typeof css>;
 
+const formatWidth = (value: number, config: Required<MediaConfig>): string => {
+  if (config.unit === "px") {
+    return `${value}px`;
+  }
+
+  const converted = value / config.baseFontSize;
+  const trimmed = Number(converted.toFixed(4));
+  return `${trimmed}${config.unit}`;
+};
+
 const createMediaQuery = (query: string): MediaQueryFn => (
   styles,
   ...interpolations
@@ -65,12 +96,12 @@ const createMediaQuery = (query: string): MediaQueryFn => (
   }
 `;
 
-export function mediaQuery({
-  min,
-  max,
-  orientation,
-}: MediaQueryOptions): typeof css {
+export function mediaQuery(
+  { min, max, orientation }: MediaQueryOptions,
+  config?: MediaConfig,
+): typeof css {
   const clauses: string[] = [];
+  const resolvedConfig = normalizeMediaConfig(config);
 
   if (min !== undefined && max !== undefined && min > max) {
     throw new Error(
@@ -79,11 +110,11 @@ export function mediaQuery({
   }
 
   if (min !== undefined) {
-    clauses.push(`(min-width: ${min}px)`);
+    clauses.push(`(min-width: ${formatWidth(min, resolvedConfig)})`);
   }
 
   if (max !== undefined) {
-    clauses.push(`(max-width: ${max}px)`);
+    clauses.push(`(max-width: ${formatWidth(max, resolvedConfig)})`);
   }
 
   if (orientation) {
@@ -100,21 +131,25 @@ export function mediaQuery({
 export function breakpoint({
   min,
   max,
+  config,
 }: {
   min?: number;
   max?: number;
+  config?: MediaConfig;
 }): MediaGroup {
   return {
-    min: mediaQuery({ min }),
-    max: mediaQuery({ max }),
-    exact: mediaQuery({ min, max }),
+    min: mediaQuery({ min }, config),
+    max: mediaQuery({ max }, config),
+    exact: mediaQuery({ min, max }, config),
   };
 }
 
 export function media<T extends string>(
   breakpoints: Breakpoints<T>,
+  config?: MediaConfig,
 ): MediaHelpers<T> {
   const keys = sortBreakpointKeys(breakpoints);
+  const resolvedConfig = normalizeMediaConfig(config);
 
   const mediaGroups = keys.reduce<Record<T, MediaGroup>>(
     (accumulator, key, index) => {
@@ -122,7 +157,7 @@ export function media<T extends string>(
       const nextKey = keys[index + 1];
       const max = nextKey ? breakpoints[nextKey] : undefined;
 
-      accumulator[key] = breakpoint({ min, max });
+      accumulator[key] = breakpoint({ min, max, config: resolvedConfig });
       return accumulator;
     },
     {} as Record<T, MediaGroup>,
@@ -150,7 +185,7 @@ export function media<T extends string>(
       );
     }
 
-    return mediaQuery({ min, max, ...options });
+    return mediaQuery({ min, max, ...options }, resolvedConfig);
   };
 
   return Object.assign(mediaGroups, {
@@ -159,14 +194,14 @@ export function media<T extends string>(
         return resolveKey(key).min;
       }
 
-      return mediaQuery({ min: breakpoints[key], ...options });
+      return mediaQuery({ min: breakpoints[key], ...options }, resolvedConfig);
     },
     max: (key: T, options?: MediaQueryOrientationOptions) => {
       if (!options) {
         return resolveKey(key).max;
       }
 
-      return mediaQuery({ max: breakpoints[key], ...options });
+      return mediaQuery({ max: breakpoints[key], ...options }, resolvedConfig);
     },
     between,
   }) as MediaHelpers<T>;

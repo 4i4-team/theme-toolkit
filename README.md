@@ -31,9 +31,18 @@ const theme = createTheme({
   }),
   buttons: buildButtons(["primary"]),
 });
+
+// Switch to rem-based queries powered by your typography base size
+const remTheme = createTheme(
+  {
+    breakpoints: DEFAULT_BREAKPOINTS,
+    typography: { rootFontSize: 18 },
+  },
+  { media: { unit: "rem" } },
+);
 ```
 
-`createTheme` wires a getter so `theme.media` always reflects the current `theme.breakpoints`. If you prefer manual control, call `media(breakpoints)` directly and assign it yourself.
+`createTheme` wires a getter so `theme.media` always reflects the current `theme.breakpoints` and uses `theme.typography.rootFontSize` (or the override you pass) when converting breakpoints to `em`/`rem`. If you prefer manual control, call `media(breakpoints, config)` directly and assign it yourself.
 
 ## Modules
 
@@ -61,7 +70,7 @@ Default palette utilities expect the CSS variables produced by `buildPalettes`; 
 
 ```ts
 import styled from "styled-components";
-import { DEFAULT_BREAKPOINTS, createTheme } from "@4i4/theme-toolkit";
+import { DEFAULT_BREAKPOINTS, createTheme, media } from "@4i4/theme-toolkit";
 
 const theme = createTheme({
   breakpoints: DEFAULT_BREAKPOINTS,
@@ -89,11 +98,17 @@ theme.media.max("sm")`display: none;`;
 theme.media.between("sm", "lg", { orientation: "portrait" })`
   flex-direction: column;
 `;
+
+// Manual helpers can opt into em/rem directly
+const emMedia = media(DEFAULT_BREAKPOINTS, {
+  unit: "em",
+  baseFontSize: 18,
+});
 ```
 
 `createTheme` wires a getter so `theme.media` always reflects the current `theme.breakpoints`. Override the breakpoint map in derived themes and the helper updates automatically.
 
-Each breakpoint exposes `min`, `max`, and `exact` functions, so responsive tweaks can stay declarative inside styled-components. Use whichever syntax reads best—`theme.media.sm.min`/`max`/`exact` for per-breakpoint chaining or the global helpers `theme.media.min(key)`, `theme.media.max(key)`, and `theme.media.between(from, to)` (each accepts an optional `{ orientation: 'portrait' | 'landscape' }`).
+Each breakpoint exposes `min`, `max`, and `exact` functions, so responsive tweaks can stay declarative inside styled-components. Use whichever syntax reads best—`theme.media.sm.min`/`max`/`exact` for per-breakpoint chaining or the global helpers `theme.media.min(key)`, `theme.media.max(key)`, and `theme.media.between(from, to)` (each accepts an optional `{ orientation: 'portrait' | 'landscape' }`). Configure width units globally with `media(breakpoints, { unit: 'em' | 'rem', baseFontSize })` or let `createTheme` infer the base from `typography.rootFontSize`.
 
 For ad-hoc situations, `mediaQuery({ min, max })` is also exported so you can build a single media query without wiring it into the theme:
 
@@ -103,7 +118,7 @@ import { mediaQuery } from "@4i4/theme-toolkit";
 
 const threeColumn = css`
   display: grid;
-  ${mediaQuery({ min: 768, orientation: "landscape" })`
+  ${mediaQuery({ min: 768, orientation: "landscape" }, { unit: "em" })`
     grid-template-columns: repeat(3, 1fr);
   `}
 `;

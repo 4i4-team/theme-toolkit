@@ -76,10 +76,35 @@ export const Wrapper = styled.div`
   ${({ theme }) => theme.media.lg.min`
     padding: 24px;
   `}
+
+  ${({ theme }) => theme.media.between("md", "xl")`
+    background: red;
+  `}
+`;
+
+// Global helpers mirror the per-breakpoint ones:
+theme.media.min("lg")`font-size: 20px;`;
+theme.media.max("sm")`display: none;`;
+theme.media.between("sm", "lg", { orientation: "portrait" })`
+  flex-direction: column;
 `;
 ```
 
-Each breakpoint exposes `min`, `max`, and `exact` functions, so responsive tweaks can stay declarative inside styled-components.
+Each breakpoint exposes `min`, `max`, and `exact` functions, so responsive tweaks can stay declarative inside styled-components. Use whichever syntax reads best—`theme.media.sm.min`/`max`/`exact` for per-breakpoint chaining or the global helpers `theme.media.min(key)`, `theme.media.max(key)`, and `theme.media.between(from, to)` (each accepts an optional `{ orientation: 'portrait' | 'landscape' }`).
+
+For ad-hoc situations, `mediaQuery({ min, max })` is also exported so you can build a single media query without wiring it into the theme:
+
+```ts
+import { css } from "styled-components";
+import { mediaQuery } from "@4i4/theme-toolkit";
+
+const threeColumn = css`
+  display: grid;
+  ${mediaQuery({ min: 768, orientation: "landscape" })`
+    grid-template-columns: repeat(3, 1fr);
+  `}
+`;
+```
 
 ## Grid Utilities
 

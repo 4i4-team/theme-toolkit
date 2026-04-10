@@ -4,7 +4,7 @@ import { Interpolation } from "styled-components/dist/types";
 type Breakpoints<T extends string> = Readonly<Record<T, number>>;
 type MediaGroup = Readonly<Record<"min" | "max" | "exact", typeof css>>;
 export type ThemeWithMedia<T extends string> = {
-  readonly media: Readonly<Record<T, MediaGroup>>;
+  readonly media: MediaHelpers<T>;
 };
 
 export type DefaultBreakpointKey = "xs" | "sm" | "md" | "lg" | "xl";
@@ -28,7 +28,28 @@ export const sortBreakpointKeys = <T extends string>(
 type MediaQueryOptions = {
   min?: number;
   max?: number;
+  orientation?: "landscape" | "portrait";
 };
+
+type MediaQueryOrientationOptions = Pick<MediaQueryOptions, "orientation">;
+
+export type MediaHelpers<T extends string> = Readonly<
+  Record<T, MediaGroup> & {
+    readonly min: (
+      key: T,
+      options?: MediaQueryOrientationOptions,
+    ) => typeof css;
+    readonly max: (
+      key: T,
+      options?: MediaQueryOrientationOptions,
+    ) => typeof css;
+    readonly between: (
+      from: T,
+      to: T,
+      options?: MediaQueryOrientationOptions,
+    ) => typeof css;
+  }
+>;
 
 type MediaQueryFn = (
   styles: TemplateStringsArray,
@@ -47,22 +68,33 @@ const createMediaQuery = (query: string): MediaQueryFn => (
 export function mediaQuery({
   min,
   max,
+  orientation,
 }: MediaQueryOptions): typeof css {
-  if (min !== undefined && max !== undefined) {
-    return createMediaQuery(
-      `(min-width: ${min}px) and (max-width: ${max}px)`,
-    ) as typeof css;
+  const clauses: string[] = [];
+
+  if (min !== undefined && max !== undefined && min > max) {
+    throw new Error(
+      "Invalid media query: `min` cannot be greater than `max`.",
+    );
   }
 
   if (min !== undefined) {
-    return createMediaQuery(`(min-width: ${min}px)`) as typeof css;
+    clauses.push(`(min-width: ${min}px)`);
   }
 
   if (max !== undefined) {
-    return createMediaQuery(`(max-width: ${max}px)`) as typeof css;
+    clauses.push(`(max-width: ${max}px)`);
   }
 
-  return css;
+  if (orientation) {
+    clauses.push(`(orientation: ${orientation})`);
+  }
+
+  if (!clauses.length) {
+    return css;
+  }
+
+  return createMediaQuery(clauses.join(" and ")) as typeof css;
 }
 
 export function breakpoint({
@@ -81,17 +113,63 @@ export function breakpoint({
 
 export function media<T extends string>(
   breakpoints: Breakpoints<T>,
-): Record<T, MediaGroup> {
+): MediaHelpers<T> {
   const keys = sortBreakpointKeys(breakpoints);
 
-  return keys.reduce<Record<T, MediaGroup>>((accumulator, key, index) => {
-    const min = breakpoints[key];
-    const nextKey = keys[index + 1];
-    const max = nextKey ? breakpoints[nextKey] : undefined;
+  const mediaGroups = keys.reduce<Record<T, MediaGroup>>(
+    (accumulator, key, index) => {
+      const min = breakpoints[key];
+      const nextKey = keys[index + 1];
+      const max = nextKey ? breakpoints[nextKey] : undefined;
 
-    accumulator[key] = breakpoint({ min, max });
-    return accumulator;
-  }, {} as Record<T, MediaGroup>);
+      accumulator[key] = breakpoint({ min, max });
+      return accumulator;
+    },
+    {} as Record<T, MediaGroup>,
+  );
+
+  const resolveKey = (key: T): MediaGroup => {
+    const group = mediaGroups[key];
+    if (!group) {
+      throw new Error(`Breakpoint "${key}" is not defined.`);
+    }
+    return group;
+  };
+
+  const between = (
+    from: T,
+    to: T,
+    options?: MediaQueryOrientationOptions,
+  ): typeof css => {
+    const min = breakpoints[from];
+    const max = breakpoints[to];
+
+    if (min === undefined || max === undefined) {
+      throw new Error(
+        `Cannot build media query between "${from}" and "${to}" breakpoints.`,
+      );
+    }
+
+    return mediaQuery({ min, max, ...options });
+  };
+
+  return Object.assign(mediaGroups, {
+    min: (key: T, options?: MediaQueryOrientationOptions) => {
+      if (!options) {
+        return resolveKey(key).min;
+      }
+
+      return mediaQuery({ min: breakpoints[key], ...options });
+    },
+    max: (key: T, options?: MediaQueryOrientationOptions) => {
+      if (!options) {
+        return resolveKey(key).max;
+      }
+
+      return mediaQuery({ max: breakpoints[key], ...options });
+    },
+    between,
+  }) as MediaHelpers<T>;
 }
 
 export type { Breakpoints, MediaGroup };

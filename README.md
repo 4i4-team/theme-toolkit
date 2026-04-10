@@ -17,18 +17,21 @@ import {
   DEFAULT_BREAKPOINTS,
   container,
   buildColumn,
-  buildPalettes,
-  buildButtons,
   createTheme,
+  buildButtons,
 } from "@4i4/theme-toolkit";
 
 const theme = createTheme({
   breakpoints: DEFAULT_BREAKPOINTS,
+  palette: {
+    primary: {
+      base: "#2251ff",
+      text: "#ffffff",
+      steps: [50, 100, 200, 300, 400, 500, 600],
+    },
+  },
   container: container(DEFAULT_BREAKPOINTS),
   column: buildColumn(12, DEFAULT_BREAKPOINTS),
-  palettes: buildPalettes({
-    primary: { main: "#2251ff", text: "#ffffff" },
-  }),
   buttons: buildButtons(["primary"]),
 });
 
@@ -37,19 +40,23 @@ const remTheme = createTheme(
   {
     breakpoints: DEFAULT_BREAKPOINTS,
     typography: { rootFontSize: 18 },
+    palette: {
+      primary: { base: "#2251ff", text: "#fff" },
+    },
   },
-  { media: { unit: "rem" } },
+  { media: { unit: "rem" }, palette: { prefix: "--brand" } },
 );
 ```
 
-`createTheme` wires a getter so `theme.media` always reflects the current `theme.breakpoints` and uses `theme.typography.rootFontSize` (or the override you pass) when converting breakpoints to `em`/`rem`. If you prefer manual control, call `media(breakpoints, config)` directly and assign it yourself.
+`createTheme` wires getters so `theme.media` always reflects the current `theme.breakpoints` (and typography base size) and `theme.paletteTokens`/`theme.paletteCSS` stay in sync with the palette source. Override the breakpoint map or palette in derived themes and the helpers update automatically.
 
 ## Modules
 
 - **media-query** – breakpoint utilities (`DEFAULT_BREAKPOINTS`, `mediaQuery`, `media`), plus container helpers.
 - **theme** – utilities for composing themes (`createTheme`).
 - **grid** – grid utilities (`container`, `buildColumn`, `buildBreakpointColumnSizes`, `columnSizes`).
-- **colors** – color transforms (`convertHexToRGB`, `lighten`, `buildPalettes`, etc.).
+- **colors** – color transforms (`convertHexToRGB`, `lighten`, `buildPaletteTokens`, etc.).
+- **buttons** – button class helpers (`buildButtons`).
 
 All helpers are designed to work with styled-components themes.
 
@@ -61,10 +68,10 @@ The `colors` module exposes helper functions for palette composition and color t
 - `convertRgbToHex(rgb)`: convert an `[r, g, b]` tuple back to a hex string.
 - `convertHexToHue(hex)`: compute the hue (in degrees) for a hex color.
 - `lighten(hex, percent)` / `darken(hex, percent)`: adjust color luminosity with 0–100% clamped input.
-- `buildPalettes(palettes)`: generate CSS custom properties (e.g. `--color--primary`, `--color--primary--dark`).
-- `buildButtons(types)`: derive button class helpers (`.btn-primary`, `.btn-primary-hollow`, etc.) from palette variables.
+- `buildPaletteTokens(paletteSource, options)`: generate design tokens and CSS variables from a palette data source.
+- `buildButtons(types)`: derive button class helpers (`.btn-primary`, `.btn-primary-hollow`, etc.) that rely on your CSS variables.
 
-Default palette utilities expect the CSS variables produced by `buildPalettes`; override or extend them to match your theme naming conventions.
+Default palette utilities expect the CSS variables produced by `buildPaletteTokens`; override or extend them to match your theme naming conventions.
 
 ## Media Helpers Example
 
@@ -79,6 +86,9 @@ import {
 
 const theme = createTheme({
   breakpoints: DEFAULT_BREAKPOINTS,
+  palette: {
+    primary: { base: "#2251ff", text: "#ffffff" },
+  },
 });
 
 export const Wrapper = styled.div`
@@ -114,7 +124,20 @@ const emMedia = media(DEFAULT_BREAKPOINTS, {
 });
 ```
 
-`createTheme` wires a getter so `theme.media` always reflects the current `theme.breakpoints`. Override the breakpoint map in derived themes and the helper updates automatically.
+`createTheme` wires getters so `theme.media` and `theme.paletteTokens` always reflect the current theme sources. Inject `theme.paletteCSS` once (e.g., with `createGlobalStyle`) to expose the generated CSS variables, and use `theme.lightenColor(name, percent)` / `theme.darkenColor(name, percent)` to derive palette-aware adjustments without re-specifying hex codes.
+```ts
+const GlobalStyles = createGlobalStyle`
+  :root {
+    ${({ theme }) => theme.paletteCSS}
+  }
+`;
+
+// Palette-aware color adjustments
+const Button = styled.button`
+  background: ${({ theme }) => theme.darkenColor("primary", 10)};
+  color: ${({ theme }) => theme.lightenColor("primary", 60)};
+`;
+```
 
 Each breakpoint exposes `min`, `max`, and `exact` functions that now double as tagged templates (for styled-components) and expose their raw `@media` string via the `.query` property. Use whichever syntax reads best—`theme.media.sm.min`/`max`/`exact` for per-breakpoint chaining or the global helpers `theme.media.min(key)`, `theme.media.max(key)`, and `theme.media.between(from, to)` (each accepts an optional `{ orientation: 'portrait' | 'landscape' }`). Configure width units globally with `media(breakpoints, { unit: 'em' | 'rem', baseFontSize })` or let `createTheme` infer the base from `typography.rootFontSize`.
 
@@ -183,6 +206,7 @@ import "styled-components";
 import type {
   DefaultBreakpoints,
   MediaHelpers,
+  PaletteTokens,
 } from "@4i4/theme-toolkit";
 
 declare module "styled-components" {
@@ -191,7 +215,10 @@ declare module "styled-components" {
     media: MediaHelpers<keyof DefaultBreakpoints>;
     container: ReturnType<typeof import("@4i4/theme-toolkit").container<keyof DefaultBreakpoints>>;
     column: ReturnType<typeof import("@4i4/theme-toolkit").buildColumn<keyof DefaultBreakpoints>>;
-    palettes: ReturnType<typeof import("@4i4/theme-toolkit").buildPalettes>;
+    paletteTokens: Record<string, PaletteTokens>;
+    paletteCSS: string;
+    lightenColor: (name: string, percent: number) => string;
+    darkenColor: (name: string, percent: number) => string;
     buttons: ReturnType<typeof import("@4i4/theme-toolkit").buildButtons>;
   }
 }
@@ -205,7 +232,7 @@ declare module "styled-components" {
 - `.btn-primary-hollow`
 - `.btn-primary-link`
 
-All variants rely on the CSS variables created by `buildPalettes`. Customize the palette map or extend the button helper to suit your design system.
+All variants rely on the CSS variables created by `buildPaletteTokens`. Customize the palette map or extend the button helper to suit your design system.
 
 ## Custom Breakpoints
 

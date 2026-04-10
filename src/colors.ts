@@ -1,11 +1,29 @@
-import { css } from "styled-components";
-import { RuleSet } from "styled-components/dist/types";
-
 type Colors = "main" | "dark" | "darker" | "light" | "lighter" | "text";
 type ColorSet = Partial<Record<Colors, string>>;
 export interface RequiredColorSet extends ColorSet {
   main: string;
   text: string;
+}
+
+export type PaletteVariantMap = Record<string, string>;
+
+export interface PaletteSource {
+  base: string;
+  text: string;
+  variants?: PaletteVariantMap;
+  steps?: Array<string | number>;
+  lightenBy?: number;
+  darkenBy?: number;
+  algorithm?: (base: string, step: string) => string;
+}
+
+export interface PaletteTokens {
+  text: string;
+  variants: PaletteVariantMap;
+}
+
+export interface PaletteBuilderOptions {
+  prefix?: string;
 }
 
 export type RGBTuple = readonly [number, number, number];
@@ -49,6 +67,7 @@ export function convertRgbToHex(rgb: RGBTuple): string {
   return `#${hex}`;
 }
 
+/** @deprecated Use palette token utilities instead. */
 export function convertHexToHue(hex: string): number {
   const [r, g, b] = convertHexToRGB(hex);
   const max = Math.max(r, g, b);
@@ -101,58 +120,107 @@ export function darken(hex: string, percent: number): string {
   return convertRgbToHex(next);
 }
 
-export function buildPalettes<T extends string>(
-  colorNames: Record<T, RequiredColorSet>,
-): RuleSet<object> {
-  return css`
-    ${(Object.entries(colorNames) as Array<[T, RequiredColorSet]>).map(
-      ([name, palette]) => css`
-        --color--${name}: ${palette.main};
-        --text--${name}: ${palette.text};
-        --color--${name}--dark: ${palette.dark ?? darken(palette.main, 30)};
-        --color--${name}--darker: ${palette.darker ?? darken(palette.main, 60)};
-        --color--${name}--light: ${palette.light ?? lighten(palette.main, 30)};
-        --color--${name}--lighter: ${palette.lighter ?? lighten(palette.main, 60)};
-      `,
-    )};
-  `;
+export function buildPaletteTokens<T extends string>(
+  paletteSource: Record<T, PaletteSource>,
+  options?: PaletteBuilderOptions,
+): {
+  tokens: Record<T, PaletteTokens>;
+  toCSS: () => string;
+} {
+  const prefix = normalizePrefix(options?.prefix);
+
+  const tokens = (Object.entries(paletteSource) as Array<[T, PaletteSource]>).reduce(
+    (accumulator, [name, palette]) => {
+      accumulator[name] = buildPaletteTokenSet(palette);
+      return accumulator;
+    },
+    {} as Record<T, PaletteTokens>,
+  );
+
+  return {
+    tokens,
+    toCSS: () => serializePaletteToCSS(tokens, prefix),
+  };
 }
 
-export function buildButtons<T extends string>(types: T[]): RuleSet<object> {
-  return css`
-    ${types.map(type => {
-      return css`
-        &.btn-${type} {
-          background-color: var(--color--${type});
-          color: var(--text--${type});
+/** @deprecated Use buildPaletteTokens instead. */
+/** @deprecated Removed. Use buildPaletteTokens instead. */
+export const buildPalettes = () => {
+  throw new Error(
+    "buildPalettes has been removed. Please migrate to buildPaletteTokens.",
+  );
+};
+const DEFAULT_PREFIX = "--dt";
 
-          &:hover {
-            background-color: var(--color--${type}--dark);
-          }
+const normalizePrefix = (prefix?: string): string => {
+  const normalized = prefix?.trim() || DEFAULT_PREFIX;
+  return normalized.startsWith("--") ? normalized : `--${normalized}`;
+};
 
-          &-hollow {
-            border-color: var(--color--${type});
-            background-color: #fff;
-            color: var(--color--${type});
+const ensureVariantSteps = (
+  palette: PaletteSource,
+): string[] => {
+  if (palette.steps && palette.steps.length) {
+    return palette.steps.map(step => step.toString());
+  }
 
-            &:hover {
-              color: var(--text--${type});
-              background-color: var(--color--${type}--dark);
-            }
-          }
+  return ["light", "lighter", "dark", "darker"];
+};
 
-          &-link {
-            background-color: transparent;
-            color: var(--color--${type});
-            padding: 0 !important;
+const buildPaletteTokenSet = (palette: PaletteSource): PaletteTokens => {
+  const steps = ensureVariantSteps(palette);
+  const variants: PaletteVariantMap = { main: palette.base, ...palette.variants };
 
-            &:hover {
-              color: var(--color--${type}--dark);
-              background-color: transparent;
-            }
-          }
-        }
-      `;
-    })};
-  `;
-}
+  for (const step of steps) {
+    if (variants[step]) {
+      continue;
+    }
+
+    if (palette.algorithm) {
+      variants[step] = palette.algorithm(palette.base, step);
+      continue;
+    }
+
+    switch (step) {
+      case "light":
+        variants[step] = lighten(palette.base, palette.lightenBy ?? 30);
+        break;
+      case "lighter":
+        variants[step] = lighten(palette.base, palette.lightenBy ?? 60);
+        break;
+      case "dark":
+        variants[step] = darken(palette.base, palette.darkenBy ?? 30);
+        break;
+      case "darker":
+        variants[step] = darken(palette.base, palette.darkenBy ?? 60);
+        break;
+      default:
+        variants[step] = palette.lightenBy
+          ? lighten(palette.base, palette.lightenBy)
+          : darken(palette.base, palette.darkenBy ?? 30);
+    }
+  }
+
+  return {
+    text: palette.text,
+    variants,
+  };
+};
+
+const serializePaletteToCSS = (
+  tokens: Record<string, PaletteTokens>,
+  prefix: string,
+): string => {
+  const parts: string[] = [];
+
+  for (const [name, palette] of Object.entries(tokens)) {
+    parts.push(`${prefix}-color--${name}: ${palette.variants.main};`);
+    parts.push(`${prefix}-text--${name}: ${palette.text};`);
+
+    for (const [variant, value] of Object.entries(palette.variants)) {
+      parts.push(`${prefix}-color--${name}--${variant}: ${value};`);
+    }
+  }
+
+  return parts.join("\n");
+};

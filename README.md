@@ -52,6 +52,22 @@ Each subsystem ships its own overview, data-source contract, and helper referenc
 
 More sections (media, typography, components) will join the `docs/` folder as they are formalized.
 
+Each subsystem also has a runnable Vite + React example under [`examples/`](examples/) (`media-app`, `layout-app`, `colors-app`, `typography-app`, `theme-app`).
+
+> **TypeScript users**: Add a `styled.d.ts` (or similarly named) file in your project that imports the toolkit’s `ThemeAugmentation` and merges it into `styled-components`. For example:
+>
+> ```ts
+> // styled.d.ts
+> import "styled-components";
+> import type { ThemeAugmentation } from "@4i4/theme-toolkit";
+>
+> declare module "styled-components" {
+>   interface DefaultTheme extends ThemeAugmentation {}
+> }
+> ```
+>
+> Include this file in your `tsconfig.json` (`"include": ["src", "styled.d.ts"]`). This prevents `DefaultTheme` errors (e.g. `layoutStyleMixin` missing) without waiting for the package to augment it globally.
+
 ## Subpath Imports
 
 Every subsystem can be imported via its own subpath:

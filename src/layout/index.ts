@@ -221,7 +221,7 @@ function normalizeTokenMap(
   };
 
   const resolveReference = (token: string, current: string): NormalizedScalarToken => {
-    if (!rawEntries[token]) {
+    if (!(token in rawEntries)) {
       throw new Error(
         `Unknown ${label} token reference "${token}" from "${current}".`,
       );

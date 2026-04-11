@@ -2,22 +2,33 @@ import terser from '@rollup/plugin-terser';
 import typescript from '@rollup/plugin-typescript';
 import external from 'rollup-plugin-peer-deps-external';
 
-const input = 'src/index.ts';
+const input = {
+  index: 'src/index.ts',
+  media: 'src/media/index.ts',
+  layout: 'src/layout/index.ts',
+  colors: 'src/colors/index.ts',
+  typography: 'src/typography/index.ts',
+  theme: 'src/theme/index.ts'
+};
 
 export default {
   input,
   output: [
     {
-      file: 'dist/index.cjs.js',
+      dir: 'dist',
       format: 'cjs',
       sourcemap: true,
-      exports: 'named'
+      exports: 'named',
+      entryFileNames: '[name].cjs.js',
+      chunkFileNames: '_[name]-[hash].cjs.js'
     },
     {
-      file: 'dist/index.esm.js',
+      dir: 'dist',
       format: 'esm',
       sourcemap: true,
-      exports: 'named'
+      exports: 'named',
+      entryFileNames: '[name].esm.js',
+      chunkFileNames: '_[name]-[hash].esm.js'
     }
   ],
   plugins: [

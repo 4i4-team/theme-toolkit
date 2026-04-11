@@ -26,6 +26,31 @@
       "require": "./dist/index.cjs.js",
       "import": "./dist/index.esm.js",
       "types": "./dist/index.d.ts"
+    },
+    "./media": {
+      "require": "./dist/media.cjs.js",
+      "import": "./dist/media.esm.js",
+      "types": "./dist/media/index.d.ts"
+    },
+    "./layout": {
+      "require": "./dist/layout.cjs.js",
+      "import": "./dist/layout.esm.js",
+      "types": "./dist/layout/index.d.ts"
+    },
+    "./colors": {
+      "require": "./dist/colors.cjs.js",
+      "import": "./dist/colors.esm.js",
+      "types": "./dist/colors/index.d.ts"
+    },
+    "./typography": {
+      "require": "./dist/typography.cjs.js",
+      "import": "./dist/typography.esm.js",
+      "types": "./dist/typography/index.d.ts"
+    },
+    "./theme": {
+      "require": "./dist/theme.cjs.js",
+      "import": "./dist/theme.esm.js",
+      "types": "./dist/theme/index.d.ts"
     }
   },
   "scripts": {

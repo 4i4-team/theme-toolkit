@@ -1,28 +1,36 @@
-import { media } from "./media-query";
+import { media } from "../media";
 import type {
   Breakpoints,
   MediaConfig,
   ThemeWithMedia,
   MediaGroup,
-} from "./media-query";
+} from "../media";
 import { css } from "styled-components";
-import { buildPaletteTokens, lighten, darken } from "./colors";
+import { buildPaletteTokens, lighten, darken } from "../colors";
 import type {
   PaletteBuilderOptions,
   PaletteSource,
   PaletteTokens,
-} from "./colors";
+} from "../colors";
 import {
   buildTypographyTokens,
   serializeTypographyToCSS,
   typographyMixin,
-} from "./typography";
-import type { TypographySource, TypographyTokens, TypographyScaleUnit } from "./typography";
+} from "../typography";
+import type { TypographySource, TypographyTokens, TypographyScaleUnit } from "../typography";
+import { buildGridTokens } from "../layout";
+import type {
+  LayoutConfig,
+  LayoutTokens,
+  LayoutHelpers,
+  LayoutBuilderOptions,
+} from "../layout";
 
 type ThemeWithBreakpoints<T extends string, TPaletteKey extends string> = {
   breakpoints: Breakpoints<T>;
   typography?: TypographySource;
   palette?: Record<TPaletteKey, PaletteSource>;
+  layout?: LayoutConfig<T>;
 };
 
 type PaletteDerived<TPaletteKey extends string> = {
@@ -41,10 +49,24 @@ type ThemeWithTypography = {
   typographyMixin: (group: string, variant: string) => ReturnType<typeof typographyMixin>;
 };
 
+type ThemeWithLayout<T extends string> = {
+  layoutTokens?: LayoutTokens<T>;
+  layoutCSS: string;
+  layoutSpacing: LayoutHelpers<T>["spacing"];
+  layoutGutter: LayoutHelpers<T>["gutter"];
+  layoutColumns: LayoutHelpers<T>["buildColumns"];
+  layoutContainer: LayoutHelpers<T>["buildContainer"];
+  layoutStyle: LayoutHelpers<T>["layout"];
+  layoutColumnsMixin: () => ReturnType<typeof css>;
+  layoutContainerMixin: (name: string) => ReturnType<typeof css>;
+  layoutStyleMixin: (group: string, variant: string) => ReturnType<typeof css>;
+};
+
 type CreateThemeOptions = {
   media?: MediaConfig;
   palette?: PaletteBuilderOptions;
   typography?: { unit?: "px" | "rem"; prefix?: string };
+  layout?: LayoutBuilderOptions;
 };
 
 const resolveMediaConfig = <T extends string, TPaletteKey extends string, TTheme extends ThemeWithBreakpoints<T, TPaletteKey>>(
@@ -100,6 +122,62 @@ const buildTypographyHelpers = (
   };
 };
 
+const createMissingLayoutHelpers = <T extends string>(): ThemeWithLayout<T> => {
+  const error = () => {
+    throw new Error("Layout source is not defined.");
+  };
+
+  return {
+    layoutTokens: undefined,
+    layoutCSS: "",
+    layoutSpacing: () => error(),
+    layoutGutter: () => error(),
+    layoutColumns: () => error(),
+    layoutContainer: () => error(),
+    layoutStyle: () => error(),
+    layoutColumnsMixin: () => error(),
+    layoutContainerMixin: () => error(),
+    layoutStyleMixin: () => error(),
+  };
+};
+
+const buildLayoutHelpers = <T extends string>(
+  layout: LayoutConfig<T> | undefined,
+  breakpoints: Breakpoints<T>,
+  options?: LayoutBuilderOptions,
+): ThemeWithLayout<T> => {
+  if (!layout) {
+    return createMissingLayoutHelpers();
+  }
+
+  const { tokens, helpers, toCSS } = buildGridTokens({ layout }, breakpoints, options);
+
+  return {
+    layoutTokens: tokens,
+    layoutCSS: toCSS(),
+    layoutSpacing: helpers.spacing,
+    layoutGutter: helpers.gutter,
+    layoutColumns: helpers.buildColumns,
+    layoutContainer: helpers.buildContainer,
+    layoutStyle: helpers.layout,
+     layoutColumnsMixin: () => helpers.columnsMixin(),
+     layoutContainerMixin: (name: string) => {
+       const mixin = helpers.containerMixin(name);
+       if (!mixin) {
+          throw new Error(`Layout container "${name}" is not defined.`);
+       }
+       return mixin;
+     },
+     layoutStyleMixin: (group: string, variant: string) => {
+       const mixin = helpers.styleMixin(group, variant);
+       if (!mixin) {
+          throw new Error(`Layout style "${group}.${variant}" is not defined.`);
+       }
+       return mixin;
+     },
+  };
+};
+
 export function createTheme<
   T extends string,
   TPaletteKey extends string,
@@ -107,12 +185,17 @@ export function createTheme<
 >(
   theme: TTheme,
   options?: CreateThemeOptions,
-): TTheme & ThemeWithMedia<T> & ThemeWithPalette<TPaletteKey> & ThemeWithTypography {
+): TTheme &
+  ThemeWithMedia<T> &
+  ThemeWithPalette<TPaletteKey> &
+  ThemeWithTypography &
+  ThemeWithLayout<T> {
   const clone = { ...theme } as TTheme &
     ThemeWithMedia<T> &
     ThemeWithBreakpoints<T, TPaletteKey> &
     ThemeWithPalette<TPaletteKey> &
-    ThemeWithTypography;
+    ThemeWithTypography &
+    ThemeWithLayout<T>;
 
   let cachedBreakpoints = clone.breakpoints;
   let cachedMediaConfig = resolveMediaConfig(clone, options?.media);
@@ -124,6 +207,13 @@ export function createTheme<
     cachedTypographySource,
     options?.typography?.unit ?? "px",
     options?.typography?.prefix,
+  );
+  let cachedLayoutSource = clone.layout;
+  let cachedLayoutBreakpoints = cachedBreakpoints;
+  let cachedLayout = buildLayoutHelpers(
+    cachedLayoutSource,
+    cachedLayoutBreakpoints,
+    options?.layout,
   );
 
   Object.defineProperty(clone, "media", {
@@ -270,6 +360,114 @@ export function createTheme<
           ${responsiveCss}
         `;
       };
+    },
+    enumerable: true,
+    configurable: true,
+  });
+
+  const ensureLayout = () => {
+    const currentLayout = clone.layout;
+    const currentBreakpoints = clone.breakpoints;
+
+    if (
+      currentLayout !== cachedLayoutSource ||
+      currentBreakpoints !== cachedLayoutBreakpoints
+    ) {
+      cachedLayoutSource = currentLayout;
+      cachedLayoutBreakpoints = currentBreakpoints;
+      cachedLayout = buildLayoutHelpers(
+        cachedLayoutSource,
+        cachedLayoutBreakpoints,
+        options?.layout,
+      );
+    }
+  };
+
+  Object.defineProperty(clone, "layoutTokens", {
+    get() {
+      ensureLayout();
+      return cachedLayout.layoutTokens;
+    },
+    enumerable: true,
+    configurable: true,
+  });
+
+  Object.defineProperty(clone, "layoutCSS", {
+    get() {
+      ensureLayout();
+      return cachedLayout.layoutCSS;
+    },
+    enumerable: true,
+    configurable: true,
+  });
+
+  Object.defineProperty(clone, "layoutSpacing", {
+    value: (token: string) => {
+      ensureLayout();
+      return cachedLayout.layoutSpacing(token);
+    },
+    enumerable: true,
+    configurable: true,
+  });
+
+  Object.defineProperty(clone, "layoutGutter", {
+    value: (token: string) => {
+      ensureLayout();
+      return cachedLayout.layoutGutter(token);
+    },
+    enumerable: true,
+    configurable: true,
+  });
+
+  Object.defineProperty(clone, "layoutColumns", {
+    value: () => {
+      ensureLayout();
+      return cachedLayout.layoutColumns();
+    },
+    enumerable: true,
+    configurable: true,
+  });
+
+  Object.defineProperty(clone, "layoutContainer", {
+    value: (name: string) => {
+      ensureLayout();
+      return cachedLayout.layoutContainer(name);
+    },
+    enumerable: true,
+    configurable: true,
+  });
+
+  Object.defineProperty(clone, "layoutStyle", {
+    value: (group: string, variant: string) => {
+      ensureLayout();
+      return cachedLayout.layoutStyle(group, variant);
+    },
+    enumerable: true,
+    configurable: true,
+  });
+
+  Object.defineProperty(clone, "layoutColumnsMixin", {
+    value: () => {
+      ensureLayout();
+      return cachedLayout.layoutColumnsMixin();
+    },
+    enumerable: true,
+    configurable: true,
+  });
+
+  Object.defineProperty(clone, "layoutContainerMixin", {
+    value: (name: string) => {
+      ensureLayout();
+      return cachedLayout.layoutContainerMixin(name);
+    },
+    enumerable: true,
+    configurable: true,
+  });
+
+  Object.defineProperty(clone, "layoutStyleMixin", {
+    value: (group: string, variant: string) => {
+      ensureLayout();
+      return cachedLayout.layoutStyleMixin(group, variant);
     },
     enumerable: true,
     configurable: true,

@@ -96,7 +96,7 @@ const createMediaQueryTemplate = (query: string): MediaTemplate => (
   styles,
   ...interpolations
 ) => css`
-  @media ${query} {
+  ${query} {
     ${css(styles, ...interpolations)}
   }
 `;

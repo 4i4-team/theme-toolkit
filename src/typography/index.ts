@@ -125,6 +125,7 @@ const buildScaleTokens = (
   const { baseFontSize, ratio, steps, variants, algorithm, precision = DEFAULT_PRECISION } = config;
   const ratioValue = TYPOGRAPHY_RATIOS[ratio];
   const finalSteps = { ...DEFAULT_SCALE_STEPS, ...steps } as TypographyScaleSteps;
+  let previousValue: number | null = null;
 
   return (Object.entries(finalSteps) as Array<[TypographyScaleKey, number]>).reduce(
     (accumulator, [key, step]) => {
@@ -133,14 +134,14 @@ const buildScaleTokens = (
 
       if (value === undefined) {
         if (algorithm) {
-          const previous = accumulator[key]?.value ?? null;
-          value = algorithm(baseFontSize, key, step, previous);
+          value = algorithm(baseFontSize, key, step, previousValue);
         } else {
           value = baseFontSize * Math.pow(ratioValue, step);
         }
       }
 
       const rounded = Number(value.toFixed(precision));
+      previousValue = rounded;
 
       accumulator[key] = {
         value: unit === "rem" ? rounded / baseFontSize : rounded,

@@ -1,5 +1,5 @@
 import React from "react";
-import styled from "styled-components";
+import styled, { useTheme } from "styled-components";
 
 const Base = styled.div``;
 
@@ -10,10 +10,19 @@ export interface ColumnProps extends React.HTMLAttributes<HTMLDivElement> {
   offset?: ColumnSpan;
 }
 
-const buildClass = (map: ColumnSpan | undefined, prefix: string) =>
+const sanitizeSegment = (value: string) =>
+  value
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-zA-Z0-9-_]/g, "-")
+    .toLowerCase();
+
+const buildClass = (map: ColumnSpan | undefined, prefix: string, type: string) =>
   Object.entries(map ?? {})
     .filter(([, value]) => typeof value === "number")
-    .map(([breakpoint, value]) => `${prefix}${breakpoint}-${value}`);
+    .map(([breakpoint, value]) =>
+      `${prefix}-${type}-${sanitizeSegment(breakpoint)}-${value}`,
+    );
 
 export const Column: React.FC<ColumnProps> = ({
   span,
@@ -22,8 +31,10 @@ export const Column: React.FC<ColumnProps> = ({
   children,
   ...rest
 }) => {
-  const spanClasses = buildClass(span, "layout-column--");
-  const offsetClasses = buildClass(offset, "layout-column-offset--");
+  const theme = useTheme();
+  const classPrefix = theme.layoutClassPrefix || "dt";
+  const spanClasses = buildClass(span, classPrefix, "col");
+  const offsetClasses = buildClass(offset, classPrefix, "offset");
   const combined = [className, ...spanClasses, ...offsetClasses]
     .filter(Boolean)
     .join(" ");

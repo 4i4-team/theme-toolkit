@@ -151,6 +151,36 @@ const gridSource = {
 } as const;
 ```
 
+### Builder Options
+
+`buildGridTokens` (and `createTheme({ layout: … })`) accepts two optional prefix controls:
+
+- `prefix` (default `--dt`) drives CSS variable names.
+- `classPrefix` customizes the generated utility classes. When omitted we derive it from `prefix` (e.g., `--brand` → `brand`, defaulting to `dt`).
+
+```ts
+createTheme(theme, {
+  layout: {
+    prefix: "--brand",
+    classPrefix: "brand",
+  },
+});
+// ⇒ CSS vars like --brand-spacing--md and classes like .brand-col-md-6
+```
+
+### Generated Utility Classes
+
+Including `layoutCSS` in your global styles emits ready-to-use utility classes:
+
+- `.${prefix}-container-{name}` — container padding/max-width per preset (`default`, `wide`, etc.).
+- `.${prefix}-col-{breakpoint}-{span}` / `.${prefix}-offset-{breakpoint}-{span}` — column spans and offsets derived from the grid size.
+- `.${prefix}-{group}-{variant}` — semantic layout styles (sections/blocks) for spacing presets.
+- `.${prefix}-stack-{name}` — flex stacks (direction, align, wrap, gap) for each `layout.stacks` entry.
+- `.${prefix}-grid-{name}` — CSS grid templates for each `layout.grids` entry.
+- `.${prefix}-gap-{token}`, `.${prefix}-px-{token}`, `.${prefix}-py-{token}`, `.${prefix}-mx-{token}`, `.${prefix}-my-{token}` — spacing utilities derived from every spacing token.
+
+The prefix defaults to `dt` (e.g., `.dt-col-md-6`) and honors `layout.classPrefix` (or falls back to the sanitized CSS-variable prefix).
+
 ### Spacing Input Options
 
 **Simplified** – single value (number/string) maps to `spacing.default` automatically:
@@ -447,7 +477,7 @@ const cssVariables = toCSS();
 | Helper | Description |
 |--------|-------------|
 | `layoutTokens` | Normalized spacing, gutters, columns, containers, and styles derived from `theme.layout`. Automatically refreshes when layout source or breakpoints change. |
-| `layoutCSS` | Serialized CSS variables plus generated classes (`.layout-container--*`, `.layout-column--*`, `.layout-section--*`, etc.). Drop into global styles to enable defaults. |
+| `layoutCSS` | Serialized CSS variables plus generated classes (e.g., `.dt-container-default`, `.dt-col-md-6`, `.dt-stack-vertical`, `.dt-grid-cards`, `.dt-gap-relaxed`). Class prefixes honor `layout.classPrefix` (default `dt`). Drop into global styles to enable defaults. |
 | `layoutSpacing(token)` | Looks up a spacing token (value + responsive overrides), honoring aliases. Throws if no layout source exists. |
 | `layoutGutter(token)` | Same as `layoutSpacing` but for named gutter presets, handy for stacks/tiles. |
 | `layoutColumns()` | Returns the normalized column config `{ size, gutter, inset }` so you can build custom grid mixins or components programmatically. |
@@ -455,6 +485,7 @@ const cssVariables = toCSS();
 | `layoutStyle(group, variant)` | Returns semantic layout style definitions (margin/padding/gap/background) plus responsive overrides, mirroring typography styles. |
 | `layoutStack(name)` | Returns normalized stack (flex) presets containing direction/align/wrap/inline data plus gap tokens. |
 | `layoutGrid(name)` | Returns normalized grid presets containing template columns/rows, alignment, and gap definitions. |
+| `layoutClassPrefix` | Sanitized prefix used by generated utility classes (defaults to `dt`, or derived from `layout.classPrefix`). Handy when composing class names manually. |
 | `layoutColumnsMixin()` | Styled-components mixin that applies the resolved column grid (`display: grid`, template columns, responsive gutters/inset). Includes `.toString()` for CSS literals. |
 | `layoutContainerMixin(name)` | Styled-components mixin for a container preset (fixed or fluid) with responsive padding/max-width baked in. Throws if the preset is missing. |
 | `layoutStyleMixin(group, variant)` | Styled-components mixin for semantic layout styles (sections/blocks) with responsive overrides and `.toString()` serialization. |

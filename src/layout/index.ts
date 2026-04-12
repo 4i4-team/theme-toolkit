@@ -242,10 +242,12 @@ export type LayoutHelpers<TBreakpoint extends string> = {
   styleMixin: (group: string, variant: string) => ReturnType<typeof css> | undefined;
   stackMixin: (name: string) => ReturnType<typeof css> | undefined;
   gridMixin: (name: string) => ReturnType<typeof css> | undefined;
+  classPrefix: string;
 };
 
 export type LayoutBuilderOptions = {
   prefix?: string;
+  classPrefix?: string;
 };
 
 type TokenMapInput = SpacingInput | GuttersInput;
@@ -253,6 +255,7 @@ type TokenMapInput = SpacingInput | GuttersInput;
 type RawTokenValue = TokenValueInput;
 
 const DEFAULT_PREFIX = "--dt";
+const DEFAULT_CLASS_PREFIX = "dt";
 const DEFAULT_RESPONSIVE_QUERY: ResponsiveQuery = "exact";
 
 const formatScalar = (value: Scalar): string =>
@@ -264,6 +267,13 @@ const normalizePrefix = (prefix?: string): string => {
   }
 
   return prefix.startsWith("--") ? prefix : `--${prefix}`;
+};
+
+const normalizeClassPrefix = (classPrefix: string | undefined, fallback: string): string => {
+  const source = classPrefix ?? fallback;
+  const trimmed = source.replace(/^--/, "").trim();
+  const sanitized = sanitizeSegment(trimmed);
+  return sanitized || DEFAULT_CLASS_PREFIX;
 };
 
 const sanitizeSegment = (segment: string): string =>
@@ -963,13 +973,14 @@ const appendResponsiveDeclarations = <T extends string>(
 const serializeContainerClasses = <T extends string>(
   containers: Record<string, NormalizedContainer<T>>,
   breakpoints: Breakpoints<T>,
+  classPrefix: string,
 ): string => {
   const parts: string[] = [];
   const { keys, nextMap } = buildBreakpointMetadata(breakpoints);
 
   for (const [name, container] of Object.entries(containers)) {
     const segment = sanitizeSegment(name);
-    const selector = `.layout-container--${segment}`;
+    const selector = `.${classPrefix}-container-${segment}`;
     const declarations = [
       "box-sizing: border-box;",
       "width: 100%;",
@@ -1069,6 +1080,7 @@ const appendStyleResponsiveTokens = <T extends string>(
 const serializeLayoutStyleClasses = <T extends string>(
   styles: Record<string, Record<string, NormalizedLayoutStyle>>,
   breakpoints: Breakpoints<T>,
+  classPrefix: string,
 ): string => {
   const parts: string[] = [];
   const { nextMap } = buildBreakpointMetadata(breakpoints);
@@ -1076,7 +1088,8 @@ const serializeLayoutStyleClasses = <T extends string>(
   for (const [group, variants] of Object.entries(styles)) {
     const groupSegment = sanitizeSegment(group);
     for (const [variant, definition] of Object.entries(variants)) {
-      const selector = `.layout-${groupSegment}--${sanitizeSegment(variant)}`;
+      const variantSegment = sanitizeSegment(variant);
+      const selector = `.${classPrefix}-${groupSegment}-${variantSegment}`;
       const declarations = buildStyleDeclarations(definition.values);
       if (declarations.length) {
         parts.push(`${selector} {\n  ${declarations.join("\n  ")}\n}`);
@@ -1172,6 +1185,193 @@ const serializeLayoutStyleClasses = <T extends string>(
         );
       });
     }
+  }
+
+  return parts.join("\n");
+};
+
+const serializeStackClasses = <T extends string>(
+  stacks: Record<string, NormalizedStack>,
+  breakpoints: Breakpoints<T>,
+  classPrefix: string,
+): string => {
+  const parts: string[] = [];
+  const { nextMap } = buildBreakpointMetadata(breakpoints);
+
+  for (const [name, stack] of Object.entries(stacks)) {
+    const selector = `.${classPrefix}-stack-${sanitizeSegment(name)}`;
+    const declarations: string[] = [
+      `display: ${stack.inline ? "inline-flex" : "flex"};`,
+      `flex-direction: ${stack.direction};`,
+    ];
+    if (stack.align) {
+      declarations.push(`align-items: ${stack.align};`);
+    }
+    if (stack.justify) {
+      declarations.push(`justify-content: ${stack.justify};`);
+    }
+    if (stack.wrap) {
+      declarations.push(`flex-wrap: ${stack.wrap};`);
+    }
+    if (stack.gap) {
+      declarations.push(`gap: ${stack.gap.value};`);
+    }
+    parts.push(`${selector} {\n  ${declarations.join("\n  ")}\n}`);
+
+    if (stack.gap) {
+      appendResponsiveDeclarations(parts, selector, "gap", stack.gap, breakpoints, nextMap);
+    }
+
+    stack.responsive.forEach(entry => {
+      const rules: string[] = [];
+      if (entry.inline !== undefined) {
+        rules.push(`display: ${entry.inline ? "inline-flex" : "flex"};`);
+      }
+      if (entry.direction) {
+        rules.push(`flex-direction: ${entry.direction};`);
+      }
+      if (entry.align) {
+        rules.push(`align-items: ${entry.align};`);
+      }
+      if (entry.justify) {
+        rules.push(`justify-content: ${entry.justify};`);
+      }
+      if (entry.wrap) {
+        rules.push(`flex-wrap: ${entry.wrap};`);
+      }
+      if (!rules.length) {
+        return;
+      }
+      parts.push(
+        wrapWithMedia(
+          breakpoints,
+          nextMap,
+          entry.breakpoint,
+          entry.query ?? DEFAULT_RESPONSIVE_QUERY,
+          `${selector} {\n  ${rules.join("\n  ")}\n}`,
+        ),
+      );
+    });
+  }
+
+  return parts.join("\n");
+};
+
+const serializeGridClasses = <T extends string>(
+  grids: Record<string, NormalizedGrid>,
+  breakpoints: Breakpoints<T>,
+  classPrefix: string,
+): string => {
+  const parts: string[] = [];
+  const { nextMap } = buildBreakpointMetadata(breakpoints);
+
+  for (const [name, grid] of Object.entries(grids)) {
+    const selector = `.${classPrefix}-grid-${sanitizeSegment(name)}`;
+    const declarations: string[] = ["display: grid;"];
+    if (grid.templateColumns) {
+      declarations.push(`grid-template-columns: ${grid.templateColumns};`);
+    }
+    if (grid.templateRows) {
+      declarations.push(`grid-template-rows: ${grid.templateRows};`);
+    }
+    if (grid.autoRows) {
+      declarations.push(`grid-auto-rows: ${grid.autoRows};`);
+    }
+    if (grid.autoColumns) {
+      declarations.push(`grid-auto-columns: ${grid.autoColumns};`);
+    }
+    if (grid.justifyItems) {
+      declarations.push(`justify-items: ${grid.justifyItems};`);
+    }
+    if (grid.alignItems) {
+      declarations.push(`align-items: ${grid.alignItems};`);
+    }
+    if (grid.justifyContent) {
+      declarations.push(`justify-content: ${grid.justifyContent};`);
+    }
+    if (grid.alignContent) {
+      declarations.push(`align-content: ${grid.alignContent};`);
+    }
+    if (grid.gap) {
+      declarations.push(`gap: ${grid.gap.value};`);
+    }
+    parts.push(`${selector} {\n  ${declarations.join("\n  ")}\n}`);
+
+    if (grid.gap) {
+      appendResponsiveDeclarations(parts, selector, "gap", grid.gap, breakpoints, nextMap);
+    }
+
+    grid.responsive.forEach(entry => {
+      const rules: string[] = [];
+      if (entry.templateColumns) {
+        rules.push(`grid-template-columns: ${entry.templateColumns};`);
+      }
+      if (entry.templateRows) {
+        rules.push(`grid-template-rows: ${entry.templateRows};`);
+      }
+      if (entry.autoRows) {
+        rules.push(`grid-auto-rows: ${entry.autoRows};`);
+      }
+      if (entry.autoColumns) {
+        rules.push(`grid-auto-columns: ${entry.autoColumns};`);
+      }
+      if (entry.justifyItems) {
+        rules.push(`justify-items: ${entry.justifyItems};`);
+      }
+      if (entry.alignItems) {
+        rules.push(`align-items: ${entry.alignItems};`);
+      }
+      if (entry.justifyContent) {
+        rules.push(`justify-content: ${entry.justifyContent};`);
+      }
+      if (entry.alignContent) {
+        rules.push(`align-content: ${entry.alignContent};`);
+      }
+      if (entry.gap) {
+        rules.push(`gap: ${entry.gap};`);
+      }
+      if (!rules.length) {
+        return;
+      }
+      parts.push(
+        wrapWithMedia(
+          breakpoints,
+          nextMap,
+          entry.breakpoint,
+          entry.query ?? DEFAULT_RESPONSIVE_QUERY,
+          `${selector} {\n  ${rules.join("\n  ")}\n}`,
+        ),
+      );
+    });
+  }
+
+  return parts.join("\n");
+};
+
+const serializeSpacingUtilityClasses = <T extends string>(
+  spacing: Record<string, NormalizedScalarToken>,
+  breakpoints: Breakpoints<T>,
+  classPrefix: string,
+): string => {
+  const parts: string[] = [];
+  const { nextMap } = buildBreakpointMetadata(breakpoints);
+
+  const pushClass = (segment: string, token: NormalizedScalarToken, label: string, properties: string[]) => {
+    const selector = `.${classPrefix}-${label}-${segment}`;
+    const declarations = properties.map(property => `${property}: ${token.value};`).join("\n  ");
+    parts.push(`${selector} {\n  ${declarations}\n}`);
+    properties.forEach(property => {
+      appendResponsiveDeclarations(parts, selector, property, token, breakpoints, nextMap);
+    });
+  };
+
+  for (const [name, token] of Object.entries(spacing)) {
+    const segment = sanitizeSegment(name);
+    pushClass(segment, token, "gap", ["gap"]);
+    pushClass(segment, token, "py", ["padding-top", "padding-bottom"]);
+    pushClass(segment, token, "px", ["padding-left", "padding-right"]);
+    pushClass(segment, token, "my", ["margin-top", "margin-bottom"]);
+    pushClass(segment, token, "mx", ["margin-left", "margin-right"]);
   }
 
   return parts.join("\n");
@@ -1517,6 +1717,7 @@ const createGridMixin = <T extends string>(
 const serializeColumnClasses = <T extends string>(
   columns: NormalizedColumns,
   breakpoints: Breakpoints<T>,
+  classPrefix: string,
 ): string => {
   const parts: string[] = [];
   const { keys } = buildBreakpointMetadata(breakpoints);
@@ -1527,8 +1728,8 @@ const serializeColumnClasses = <T extends string>(
     const rules = spans
       .map(span => {
         const segment = sanitizeSegment(key);
-        const className = `.layout-column--${segment}-${span}`;
-        const offsetClass = `.layout-column-offset--${segment}-${span}`;
+        const className = `.${classPrefix}-col-${segment}-${span}`;
+        const offsetClass = `.${classPrefix}-offset-${segment}-${span}`;
         return `${className} {\n  grid-column-end: span ${span};\n}\n${offsetClass} {\n  grid-column-start: ${span + 1};\n}`;
       })
       .join("\n");
@@ -1555,6 +1756,7 @@ export function buildGridTokens<TBreakpoint extends string>(
 } {
   const layout = source.layout;
   const prefix = normalizePrefix(options?.prefix);
+  const classPrefix = normalizeClassPrefix(options?.classPrefix, prefix);
 
   const spacing = normalizeTokenMap("spacing", layout.spacing, { ensureNone: true });
   const gutters = normalizeTokenMap("gutters", ensureRecord(layout.gutters, { default: "none" }), {
@@ -1613,6 +1815,7 @@ export function buildGridTokens<TBreakpoint extends string>(
       }
       return createGridMixin(definition, breakpoints);
     },
+    classPrefix,
   };
 
   const toCSS = () => {
@@ -1622,17 +1825,29 @@ export function buildGridTokens<TBreakpoint extends string>(
     parts.push(...serializeColumns(prefix, tokens.columns));
     parts.push(...serializeContainers(prefix, tokens.containers));
     parts.push(...serializeStyles(prefix, tokens.styles));
-    const columnClasses = serializeColumnClasses(tokens.columns, breakpoints);
+    const columnClasses = serializeColumnClasses(tokens.columns, breakpoints, classPrefix);
     if (columnClasses) {
       parts.push(columnClasses);
     }
-    const containerClasses = serializeContainerClasses(tokens.containers, breakpoints);
+    const containerClasses = serializeContainerClasses(tokens.containers, breakpoints, classPrefix);
     if (containerClasses) {
       parts.push(containerClasses);
     }
-    const layoutStyleClasses = serializeLayoutStyleClasses(tokens.styles, breakpoints);
+    const layoutStyleClasses = serializeLayoutStyleClasses(tokens.styles, breakpoints, classPrefix);
     if (layoutStyleClasses) {
       parts.push(layoutStyleClasses);
+    }
+    const stackClasses = serializeStackClasses(tokens.stacks, breakpoints, classPrefix);
+    if (stackClasses) {
+      parts.push(stackClasses);
+    }
+    const gridClasses = serializeGridClasses(tokens.grids, breakpoints, classPrefix);
+    if (gridClasses) {
+      parts.push(gridClasses);
+    }
+    const spacingClasses = serializeSpacingUtilityClasses(tokens.spacing, breakpoints, classPrefix);
+    if (spacingClasses) {
+      parts.push(spacingClasses);
     }
     return parts.join("\n");
   };

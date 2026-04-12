@@ -24,6 +24,7 @@ export interface ThemeAugmentation {
   layoutStyle: LayoutHelpers<string>["layout"];
   layoutStack: LayoutHelpers<string>["stack"];
   layoutGrid: LayoutHelpers<string>["grid"];
+  layoutClassPrefix: string;
   layoutColumnsMixin: () => ReturnType<typeof import("styled-components").css>;
   layoutContainerMixin: (name: string) => ReturnType<typeof import("styled-components").css>;
   layoutStyleMixin: (group: string, variant: string) => ReturnType<typeof import("styled-components").css>;

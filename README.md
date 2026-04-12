@@ -27,7 +27,7 @@ const theme = createTheme(
   {
     media: { unit: "rem" },
     typography: { unit: "rem", prefix: "--brand" },
-    layout: { prefix: "--brand" },
+    layout: { prefix: "--brand", classPrefix: "brand" },
   },
 );
 

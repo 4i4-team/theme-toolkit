@@ -59,6 +59,7 @@ type ThemeWithLayout<T extends string> = {
   layoutStyle: LayoutHelpers<T>["layout"];
   layoutStack: LayoutHelpers<T>["stack"];
   layoutGrid: LayoutHelpers<T>["grid"];
+  layoutClassPrefix: string;
   layoutColumnsMixin: () => ReturnType<typeof css>;
   layoutContainerMixin: (name: string) => ReturnType<typeof css>;
   layoutStyleMixin: (group: string, variant: string) => ReturnType<typeof css>;
@@ -141,6 +142,7 @@ const createMissingLayoutHelpers = <T extends string>(): ThemeWithLayout<T> => {
     layoutStyle: () => error(),
     layoutStack: () => error(),
     layoutGrid: () => error(),
+    layoutClassPrefix: "dt",
     layoutColumnsMixin: () => error(),
     layoutContainerMixin: () => error(),
     layoutStyleMixin: () => error(),
@@ -170,6 +172,7 @@ const buildLayoutHelpers = <T extends string>(
     layoutStyle: helpers.layout,
     layoutStack: helpers.stack,
     layoutGrid: helpers.grid,
+    layoutClassPrefix: helpers.classPrefix,
     layoutColumnsMixin: () => helpers.columnsMixin(),
     layoutContainerMixin: (name: string) => {
       const mixin = helpers.containerMixin(name);
@@ -483,6 +486,15 @@ export function createTheme<
     value: (name: string) => {
       ensureLayout();
       return cachedLayout.layoutGrid(name);
+    },
+    enumerable: true,
+    configurable: true,
+  });
+
+  Object.defineProperty(clone, "layoutClassPrefix", {
+    get() {
+      ensureLayout();
+      return cachedLayout.layoutClassPrefix;
     },
     enumerable: true,
     configurable: true,

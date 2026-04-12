@@ -8,6 +8,8 @@ import { ContainerShowcase } from "./components/ContainerShowcase";
 import { SpacingShowcase } from "./components/SpacingShowcase";
 import { GutterShowcase } from "./components/GutterShowcase";
 import { StyleTokensShowcase } from "./components/StyleTokensShowcase";
+import { StackShowcase } from "./components/StackShowcase";
+import { GridPresetShowcase } from "./components/GridPresetShowcase";
 
 const GlobalStyles = createGlobalStyle`
   :root {
@@ -86,6 +88,10 @@ export function App() {
         <GutterShowcase />
         <SectionTitle>Predefined styles</SectionTitle>
         <StyleTokensShowcase />
+        <SectionTitle>Stack presets</SectionTitle>
+        <StackShowcase />
+        <SectionTitle>Grid presets</SectionTitle>
+        <GridPresetShowcase />
         <SectionTitle>Column spans</SectionTitle>
         <ColumnShowcase />
         <SectionTitle>Column offsets</SectionTitle>

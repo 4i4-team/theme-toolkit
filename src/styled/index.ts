@@ -22,7 +22,11 @@ export interface ThemeAugmentation {
   layoutColumns: LayoutHelpers<string>["buildColumns"];
   layoutContainer: LayoutHelpers<string>["buildContainer"];
   layoutStyle: LayoutHelpers<string>["layout"];
+  layoutStack: LayoutHelpers<string>["stack"];
+  layoutGrid: LayoutHelpers<string>["grid"];
   layoutColumnsMixin: () => ReturnType<typeof import("styled-components").css>;
   layoutContainerMixin: (name: string) => ReturnType<typeof import("styled-components").css>;
   layoutStyleMixin: (group: string, variant: string) => ReturnType<typeof import("styled-components").css>;
+  layoutStackMixin: (name: string) => ReturnType<typeof import("styled-components").css>;
+  layoutGridMixin: (name: string) => ReturnType<typeof import("styled-components").css>;
 }

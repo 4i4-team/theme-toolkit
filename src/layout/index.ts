@@ -68,12 +68,65 @@ export type LayoutStyleDefinition = {
 
 export type LayoutStylesInput = Record<string, Record<string, LayoutStyleDefinition>>;
 
+export type StackDefinition = {
+  direction?: "row" | "column";
+  align?: string;
+  justify?: string;
+  wrap?: string;
+  inline?: boolean;
+  gap?: TokenValueInput;
+  responsive?: Array<
+    {
+      breakpoint: string;
+      query?: ResponsiveQuery;
+      direction?: "row" | "column";
+      align?: string;
+      justify?: string;
+      wrap?: string;
+      inline?: boolean;
+    }
+  >;
+};
+
+export type StacksInput = Record<string, StackDefinition>;
+
+export type GridDefinition = {
+  templateColumns?: string;
+  templateRows?: string;
+  autoRows?: string;
+  autoColumns?: string;
+  justifyItems?: string;
+  alignItems?: string;
+  justifyContent?: string;
+  alignContent?: string;
+  gap?: TokenValueInput;
+  responsive?: Array<GridResponsiveDefinition>;
+};
+
+export type GridResponsiveDefinition = {
+  breakpoint: string;
+  query?: ResponsiveQuery;
+  templateColumns?: string;
+  templateRows?: string;
+  autoRows?: string;
+  autoColumns?: string;
+  justifyItems?: string;
+  alignItems?: string;
+  justifyContent?: string;
+  alignContent?: string;
+  gap?: TokenValueInput;
+};
+
+export type GridsInput = Record<string, GridDefinition>;
+
 export type LayoutConfig<TBreakpoint extends string> = {
   spacing: SpacingInput;
   gutters?: GuttersInput;
   columns?: ColumnsInput;
   containers?: ContainersInput<TBreakpoint>;
   styles?: LayoutStylesInput;
+  stacks?: StacksInput;
+  grids?: GridsInput;
 };
 
 export type GridSource<TBreakpoint extends string> = {
@@ -123,12 +176,57 @@ type NormalizedLayoutStyle = {
   }>;
 };
 
+type NormalizedStack = {
+  direction: "row" | "column";
+  align?: string;
+  justify?: string;
+  wrap?: string;
+  inline: boolean;
+  gap?: NormalizedScalarToken;
+  responsive: Array<{
+    breakpoint: string;
+    query: ResponsiveQuery;
+    direction?: "row" | "column";
+    align?: string;
+    justify?: string;
+    wrap?: string;
+    inline?: boolean;
+  }>;
+};
+
+type NormalizedGrid = {
+  templateColumns?: string;
+  templateRows?: string;
+  autoRows?: string;
+  autoColumns?: string;
+  justifyItems?: string;
+  alignItems?: string;
+  justifyContent?: string;
+  alignContent?: string;
+  gap?: NormalizedScalarToken;
+  responsive: Array<{
+    breakpoint: string;
+    query: ResponsiveQuery;
+    templateColumns?: string;
+    templateRows?: string;
+    autoRows?: string;
+    autoColumns?: string;
+    justifyItems?: string;
+    alignItems?: string;
+    justifyContent?: string;
+    alignContent?: string;
+    gap?: string;
+  }>;
+};
+
 export type LayoutTokens<TBreakpoint extends string> = {
   spacing: Record<string, NormalizedScalarToken>;
   gutters: Record<string, NormalizedScalarToken>;
   columns: NormalizedColumns;
   containers: Record<string, NormalizedContainer<TBreakpoint>>;
   styles: Record<string, Record<string, NormalizedLayoutStyle>>;
+  stacks: Record<string, NormalizedStack>;
+  grids: Record<string, NormalizedGrid>;
 };
 
 export type LayoutHelpers<TBreakpoint extends string> = {
@@ -137,9 +235,13 @@ export type LayoutHelpers<TBreakpoint extends string> = {
   buildColumns: () => NormalizedColumns;
   buildContainer: (name: string) => NormalizedContainer<TBreakpoint> | undefined;
   layout: (group: string, variant: string) => NormalizedLayoutStyle | undefined;
+  stack: (name: string) => NormalizedStack | undefined;
+  grid: (name: string) => NormalizedGrid | undefined;
   columnsMixin: () => ReturnType<typeof css>;
   containerMixin: (name: string) => ReturnType<typeof css> | undefined;
   styleMixin: (group: string, variant: string) => ReturnType<typeof css> | undefined;
+  stackMixin: (name: string) => ReturnType<typeof css> | undefined;
+  gridMixin: (name: string) => ReturnType<typeof css> | undefined;
 };
 
 export type LayoutBuilderOptions = {
@@ -151,6 +253,7 @@ type TokenMapInput = SpacingInput | GuttersInput;
 type RawTokenValue = TokenValueInput;
 
 const DEFAULT_PREFIX = "--dt";
+const DEFAULT_RESPONSIVE_QUERY: ResponsiveQuery = "exact";
 
 const formatScalar = (value: Scalar): string =>
   typeof value === "number" ? `${value}px` : value;
@@ -258,7 +361,7 @@ function normalizeTokenMap(
 
       return {
         breakpoint: entry.breakpoint,
-        query: entry.query ?? "min",
+        query: entry.query ?? DEFAULT_RESPONSIVE_QUERY,
         value: responsiveValue,
       };
     });
@@ -329,7 +432,7 @@ const resolveTokenReference = (
 
     return {
       breakpoint: entry.breakpoint,
-      query: entry.query ?? "min",
+      query: entry.query ?? DEFAULT_RESPONSIVE_QUERY,
       value: responsiveValue,
     };
   });
@@ -483,6 +586,102 @@ const normalizeStyles = (
   );
 };
 
+const normalizeStacks = (
+  input: StacksInput | undefined,
+  spacing: Record<string, NormalizedScalarToken>,
+): Record<string, NormalizedStack> => {
+  if (!input) {
+    return {} as Record<string, NormalizedStack>;
+  }
+
+  return Object.entries(input).reduce<Record<string, NormalizedStack>>(
+    (acc, [name, definition]) => {
+      acc[name] = normalizeStackVariant(`stacks.${name}`, definition, spacing);
+      return acc;
+    },
+    {},
+  );
+};
+
+const normalizeStackVariant = (
+  label: string,
+  definition: StackDefinition,
+  spacing: Record<string, NormalizedScalarToken>,
+): NormalizedStack => {
+  return {
+    direction: definition.direction ?? "column",
+    align: definition.align,
+    justify: definition.justify,
+    wrap: definition.wrap,
+    inline: definition.inline ?? false,
+    gap: definition.gap
+      ? resolveTokenReference(`${label}.gap`, definition.gap, "none", spacing)
+      : undefined,
+    responsive: (definition.responsive ?? []).map(entry => ({
+      breakpoint: entry.breakpoint,
+      query: entry.query ?? DEFAULT_RESPONSIVE_QUERY,
+      direction: entry.direction,
+      align: entry.align,
+      justify: entry.justify,
+      wrap: entry.wrap,
+      inline: entry.inline,
+    })),
+  };
+};
+
+const normalizeGrids = (
+  input: GridsInput | undefined,
+  spacing: Record<string, NormalizedScalarToken>,
+): Record<string, NormalizedGrid> => {
+  if (!input) {
+    return {} as Record<string, NormalizedGrid>;
+  }
+
+  return Object.entries(input).reduce<Record<string, NormalizedGrid>>(
+    (acc, [name, definition]) => {
+      acc[name] = normalizeGridVariant(`grids.${name}`, definition, spacing);
+      return acc;
+    },
+    {},
+  );
+};
+
+const normalizeGridVariant = (
+  label: string,
+  definition: GridDefinition,
+  spacing: Record<string, NormalizedScalarToken>,
+): NormalizedGrid => {
+  const resolveGapValue = (sourceLabel: string, input: TokenValueInput | undefined) =>
+    input ? resolveTokenReference(sourceLabel, input, "none", spacing).value : undefined;
+
+  return {
+    templateColumns: definition.templateColumns,
+    templateRows: definition.templateRows,
+    autoRows: definition.autoRows,
+    autoColumns: definition.autoColumns,
+    justifyItems: definition.justifyItems,
+    alignItems: definition.alignItems,
+    justifyContent: definition.justifyContent,
+    alignContent: definition.alignContent,
+    gap: definition.gap
+      ? resolveTokenReference(`${label}.gap`, definition.gap, "none", spacing)
+      : undefined,
+    responsive: (definition.responsive ?? []).map(entry => ({
+      breakpoint: entry.breakpoint,
+      query: entry.query ?? DEFAULT_RESPONSIVE_QUERY,
+      templateColumns: entry.templateColumns,
+      templateRows: entry.templateRows,
+      autoRows: entry.autoRows,
+      autoColumns: entry.autoColumns,
+      justifyItems: entry.justifyItems,
+      alignItems: entry.alignItems,
+      justifyContent: entry.justifyContent,
+      alignContent: entry.alignContent,
+      gap: resolveGapValue(`${label}.responsive`, entry.gap),
+    })),
+  };
+};
+
 const normalizeStyleVariant = (
   label: string,
   definition: LayoutStyleDefinition,
@@ -491,7 +690,7 @@ const normalizeStyleVariant = (
   const values = resolveStyleValues(label, definition, spacing);
   const responsive = (definition.responsive ?? []).map(entry => ({
     breakpoint: entry.breakpoint,
-    query: entry.query ?? "min",
+    query: entry.query ?? DEFAULT_RESPONSIVE_QUERY,
     values: resolveStyleValues(`${label}.responsive`, entry, spacing),
   }));
 
@@ -754,7 +953,7 @@ const appendResponsiveDeclarations = <T extends string>(
         breakpoints,
         nextMap,
         entry.breakpoint,
-        entry.query ?? "min",
+        entry.query ?? DEFAULT_RESPONSIVE_QUERY,
         declaration,
       ),
     );
@@ -967,7 +1166,7 @@ const serializeLayoutStyleClasses = <T extends string>(
             breakpoints,
             nextMap,
             entry.breakpoint,
-            entry.query ?? "min",
+            entry.query ?? DEFAULT_RESPONSIVE_QUERY,
             rule,
           ),
         );
@@ -993,7 +1192,7 @@ const buildResponsiveRulesForToken = <T extends string>(
       breakpoints,
       nextMap,
       entry.breakpoint,
-      entry.query ?? "min",
+      entry.query ?? DEFAULT_RESPONSIVE_QUERY,
       builder(entry.value),
     ),
   );
@@ -1144,8 +1343,170 @@ const createStyleMixin = <T extends string>(
         breakpoints,
         nextMap,
         entry.breakpoint,
-        entry.query ?? "min",
+        entry.query ?? DEFAULT_RESPONSIVE_QUERY,
         block,
+      ),
+    );
+  });
+
+  return createMixin(sections);
+};
+
+const createStackMixin = <T extends string>(
+  stack: NormalizedStack,
+  breakpoints: Breakpoints<T>,
+): ReturnType<typeof css> => {
+  const sections: string[] = [];
+  const declarations: string[] = [
+    `display: ${stack.inline ? "inline-flex" : "flex"};`,
+    `flex-direction: ${stack.direction};`,
+  ];
+  if (stack.align) {
+    declarations.push(`align-items: ${stack.align};`);
+  }
+  if (stack.justify) {
+    declarations.push(`justify-content: ${stack.justify};`);
+  }
+  if (stack.wrap) {
+    declarations.push(`flex-wrap: ${stack.wrap};`);
+  }
+  if (stack.gap) {
+    declarations.push(`gap: ${stack.gap.value};`);
+  }
+  sections.push(declarations.join("\n"));
+
+  const { nextMap } = buildBreakpointMetadata(breakpoints);
+  if (stack.gap) {
+    sections.push(
+      ...buildResponsiveRulesForToken(
+        stack.gap,
+        breakpoints,
+        nextMap,
+        value => `gap: ${value};`,
+      ),
+    );
+  }
+
+  stack.responsive.forEach(entry => {
+    const rules: string[] = [];
+    if (entry.inline !== undefined) {
+      rules.push(`display: ${entry.inline ? "inline-flex" : "flex"};`);
+    }
+    if (entry.direction) {
+      rules.push(`flex-direction: ${entry.direction};`);
+    }
+    if (entry.align) {
+      rules.push(`align-items: ${entry.align};`);
+    }
+    if (entry.justify) {
+      rules.push(`justify-content: ${entry.justify};`);
+    }
+    if (entry.wrap) {
+      rules.push(`flex-wrap: ${entry.wrap};`);
+    }
+    if (!rules.length) {
+      return;
+    }
+    sections.push(
+      wrapWithMedia(
+        breakpoints,
+        nextMap,
+        entry.breakpoint,
+        entry.query ?? DEFAULT_RESPONSIVE_QUERY,
+        rules.join("\n"),
+      ),
+    );
+  });
+
+  return createMixin(sections);
+};
+
+const createGridMixin = <T extends string>(
+  grid: NormalizedGrid,
+  breakpoints: Breakpoints<T>,
+): ReturnType<typeof css> => {
+  const sections: string[] = [];
+  const declarations: string[] = ["display: grid;"];
+  if (grid.templateColumns) {
+    declarations.push(`grid-template-columns: ${grid.templateColumns};`);
+  }
+  if (grid.templateRows) {
+    declarations.push(`grid-template-rows: ${grid.templateRows};`);
+  }
+  if (grid.autoRows) {
+    declarations.push(`grid-auto-rows: ${grid.autoRows};`);
+  }
+  if (grid.autoColumns) {
+    declarations.push(`grid-auto-columns: ${grid.autoColumns};`);
+  }
+  if (grid.justifyItems) {
+    declarations.push(`justify-items: ${grid.justifyItems};`);
+  }
+  if (grid.alignItems) {
+    declarations.push(`align-items: ${grid.alignItems};`);
+  }
+  if (grid.justifyContent) {
+    declarations.push(`justify-content: ${grid.justifyContent};`);
+  }
+  if (grid.alignContent) {
+    declarations.push(`align-content: ${grid.alignContent};`);
+  }
+  if (grid.gap) {
+    declarations.push(`gap: ${grid.gap.value};`);
+  }
+  sections.push(declarations.join("\n"));
+
+  const { nextMap } = buildBreakpointMetadata(breakpoints);
+  if (grid.gap) {
+    sections.push(
+      ...buildResponsiveRulesForToken(
+        grid.gap,
+        breakpoints,
+        nextMap,
+        value => `gap: ${value};`,
+      ),
+    );
+  }
+
+  grid.responsive.forEach(entry => {
+    const rules: string[] = [];
+    if (entry.templateColumns) {
+      rules.push(`grid-template-columns: ${entry.templateColumns};`);
+    }
+    if (entry.templateRows) {
+      rules.push(`grid-template-rows: ${entry.templateRows};`);
+    }
+    if (entry.autoRows) {
+      rules.push(`grid-auto-rows: ${entry.autoRows};`);
+    }
+    if (entry.autoColumns) {
+      rules.push(`grid-auto-columns: ${entry.autoColumns};`);
+    }
+    if (entry.justifyItems) {
+      rules.push(`justify-items: ${entry.justifyItems};`);
+    }
+    if (entry.alignItems) {
+      rules.push(`align-items: ${entry.alignItems};`);
+    }
+    if (entry.justifyContent) {
+      rules.push(`justify-content: ${entry.justifyContent};`);
+    }
+    if (entry.alignContent) {
+      rules.push(`align-content: ${entry.alignContent};`);
+    }
+    if (entry.gap) {
+      rules.push(`gap: ${entry.gap};`);
+    }
+    if (!rules.length) {
+      return;
+    }
+    sections.push(
+      wrapWithMedia(
+        breakpoints,
+        nextMap,
+        entry.breakpoint,
+        entry.query ?? DEFAULT_RESPONSIVE_QUERY,
+        rules.join("\n"),
       ),
     );
   });
@@ -1202,6 +1563,8 @@ export function buildGridTokens<TBreakpoint extends string>(
   const columns = normalizeColumns(layout.columns, spacing);
   const containers = normalizeContainers(layout.containers, spacing, breakpoints);
   const styles = normalizeStyles(layout.styles, spacing);
+  const stacks = normalizeStacks(layout.stacks, spacing);
+  const grids = normalizeGrids(layout.grids, spacing);
 
   const tokens: LayoutTokens<TBreakpoint> = {
     spacing,
@@ -1209,6 +1572,8 @@ export function buildGridTokens<TBreakpoint extends string>(
     columns,
     containers,
     styles,
+    stacks,
+    grids,
   };
 
   const helpers: LayoutHelpers<TBreakpoint> = {
@@ -1217,6 +1582,8 @@ export function buildGridTokens<TBreakpoint extends string>(
     buildColumns: () => tokens.columns,
     buildContainer: name => tokens.containers[name],
     layout: (group, variant) => tokens.styles[group]?.[variant],
+    stack: name => tokens.stacks[name],
+    grid: name => tokens.grids[name],
     columnsMixin: () => createColumnsMixin(tokens.columns, breakpoints),
     containerMixin: name => {
       const container = tokens.containers[name];
@@ -1231,6 +1598,20 @@ export function buildGridTokens<TBreakpoint extends string>(
         return undefined;
       }
       return createStyleMixin(definition, breakpoints);
+    },
+    stackMixin: name => {
+      const definition = tokens.stacks[name];
+      if (!definition) {
+        return undefined;
+      }
+      return createStackMixin(definition, breakpoints);
+    },
+    gridMixin: name => {
+      const definition = tokens.grids[name];
+      if (!definition) {
+        return undefined;
+      }
+      return createGridMixin(definition, breakpoints);
     },
   };
 

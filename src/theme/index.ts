@@ -57,9 +57,13 @@ type ThemeWithLayout<T extends string> = {
   layoutColumns: LayoutHelpers<T>["buildColumns"];
   layoutContainer: LayoutHelpers<T>["buildContainer"];
   layoutStyle: LayoutHelpers<T>["layout"];
+  layoutStack: LayoutHelpers<T>["stack"];
+  layoutGrid: LayoutHelpers<T>["grid"];
   layoutColumnsMixin: () => ReturnType<typeof css>;
   layoutContainerMixin: (name: string) => ReturnType<typeof css>;
   layoutStyleMixin: (group: string, variant: string) => ReturnType<typeof css>;
+  layoutStackMixin: (name: string) => ReturnType<typeof css>;
+  layoutGridMixin: (name: string) => ReturnType<typeof css>;
 };
 
 type CreateThemeOptions = {
@@ -135,9 +139,13 @@ const createMissingLayoutHelpers = <T extends string>(): ThemeWithLayout<T> => {
     layoutColumns: () => error(),
     layoutContainer: () => error(),
     layoutStyle: () => error(),
+    layoutStack: () => error(),
+    layoutGrid: () => error(),
     layoutColumnsMixin: () => error(),
     layoutContainerMixin: () => error(),
     layoutStyleMixin: () => error(),
+    layoutStackMixin: () => error(),
+    layoutGridMixin: () => error(),
   };
 };
 
@@ -160,21 +168,37 @@ const buildLayoutHelpers = <T extends string>(
     layoutColumns: helpers.buildColumns,
     layoutContainer: helpers.buildContainer,
     layoutStyle: helpers.layout,
-     layoutColumnsMixin: () => helpers.columnsMixin(),
-     layoutContainerMixin: (name: string) => {
-       const mixin = helpers.containerMixin(name);
-       if (!mixin) {
-          throw new Error(`Layout container "${name}" is not defined.`);
-       }
-       return mixin;
-     },
-     layoutStyleMixin: (group: string, variant: string) => {
-       const mixin = helpers.styleMixin(group, variant);
-       if (!mixin) {
-          throw new Error(`Layout style "${group}.${variant}" is not defined.`);
-       }
-       return mixin;
-     },
+    layoutStack: helpers.stack,
+    layoutGrid: helpers.grid,
+    layoutColumnsMixin: () => helpers.columnsMixin(),
+    layoutContainerMixin: (name: string) => {
+      const mixin = helpers.containerMixin(name);
+      if (!mixin) {
+        throw new Error(`Layout container "${name}" is not defined.`);
+      }
+      return mixin;
+    },
+    layoutStyleMixin: (group: string, variant: string) => {
+      const mixin = helpers.styleMixin(group, variant);
+      if (!mixin) {
+        throw new Error(`Layout style "${group}.${variant}" is not defined.`);
+      }
+      return mixin;
+    },
+    layoutStackMixin: (name: string) => {
+      const mixin = helpers.stackMixin(name);
+      if (!mixin) {
+        throw new Error(`Layout stack "${name}" is not defined.`);
+      }
+      return mixin;
+    },
+    layoutGridMixin: (name: string) => {
+      const mixin = helpers.gridMixin(name);
+      if (!mixin) {
+        throw new Error(`Layout grid "${name}" is not defined.`);
+      }
+      return mixin;
+    },
   };
 };
 
@@ -446,6 +470,24 @@ export function createTheme<
     configurable: true,
   });
 
+  Object.defineProperty(clone, "layoutStack", {
+    value: (name: string) => {
+      ensureLayout();
+      return cachedLayout.layoutStack(name);
+    },
+    enumerable: true,
+    configurable: true,
+  });
+
+  Object.defineProperty(clone, "layoutGrid", {
+    value: (name: string) => {
+      ensureLayout();
+      return cachedLayout.layoutGrid(name);
+    },
+    enumerable: true,
+    configurable: true,
+  });
+
   Object.defineProperty(clone, "layoutColumnsMixin", {
     value: () => {
       ensureLayout();
@@ -468,6 +510,24 @@ export function createTheme<
     value: (group: string, variant: string) => {
       ensureLayout();
       return cachedLayout.layoutStyleMixin(group, variant);
+    },
+    enumerable: true,
+    configurable: true,
+  });
+
+  Object.defineProperty(clone, "layoutStackMixin", {
+    value: (name: string) => {
+      ensureLayout();
+      return cachedLayout.layoutStackMixin(name);
+    },
+    enumerable: true,
+    configurable: true,
+  });
+
+  Object.defineProperty(clone, "layoutGridMixin", {
+    value: (name: string) => {
+      ensureLayout();
+      return cachedLayout.layoutGridMixin(name);
     },
     enumerable: true,
     configurable: true,

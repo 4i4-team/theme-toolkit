@@ -101,6 +101,41 @@ const layoutSource = {
       },
     },
   },
+  stacks: {
+    vertical: {
+      direction: "column",
+      gap: "relaxed",
+      align: "stretch",
+    },
+    horizontal: {
+      direction: "row",
+      gap: "compact",
+      align: "center",
+      responsive: [
+        { breakpoint: "sm", direction: "column" },
+      ],
+    },
+    inlinePills: {
+      direction: "row",
+      inline: true,
+      gap: "compact",
+      wrap: "wrap",
+    },
+  },
+  grids: {
+    cards: {
+      templateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+      gap: "relaxed",
+    },
+    feature: {
+      templateColumns: "repeat(3, minmax(0, 1fr))",
+      gap: "default",
+      responsive: [
+        { breakpoint: "md", templateColumns: "repeat(2, minmax(0, 1fr))" },
+        { breakpoint: "sm", templateColumns: "repeat(1, minmax(0, 1fr))" },
+      ],
+    },
+  },
 } as const;
 
 export const theme = createTheme(

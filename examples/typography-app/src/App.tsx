@@ -1,71 +1,14 @@
 import { useState } from "react";
-import { createGlobalStyle } from "styled-components";
+import { ThemeProvider, createGlobalStyle } from "styled-components";
 import styled from "styled-components";
-import { buildTypographyTokens, typographyMixin } from "@4i4/theme-toolkit/typography";
-
-const typographySource = {
-  families: {
-    base: "Inter, sans-serif",
-    heading: "DM Serif Display, serif",
-    mono: "IBM Plex Mono, monospace",
-  },
-  weights: {
-    regular: 400,
-    medium: 500,
-    semibold: 600,
-    bold: 700,
-  },
-  lineHeights: {
-    tight: 1.2,
-    normal: 1.5,
-    relaxed: 1.8,
-  },
-  letterSpacings: {
-    tighter: "-0.03em",
-    normal: "0",
-    wide: "0.04em",
-  },
-  scale: {
-    baseFontSize: 18,
-    ratio: "major-third",
-  },
-  styles: {
-    heading: {
-      hero: {
-        family: "heading",
-        size: "2xl",
-        weight: "bold",
-        lineHeight: "tight",
-        letterSpacing: "tighter",
-      },
-    },
-    body: {
-      base: {
-        family: "base",
-        size: "md",
-        weight: "regular",
-        lineHeight: "normal",
-        letterSpacing: "normal",
-      },
-    },
-  },
-} as const;
-
-const tokens = buildTypographyTokens(typographySource);
+import { theme } from "./theme";
 
 const GlobalStyles = createGlobalStyle`
   :root {
-    ${Object.entries(tokens.families)
-      .map(([key, value]) => `--font-family-${key}: ${value};`)
-      .join("\n")}
+    ${({ theme }) => theme.paletteCSS}
+    ${({ theme }) => theme.typographyCSS}
   }
-
-  body {
-    margin: 0;
-    font-family: var(--font-family-base, Inter, sans-serif);
-    background: #fdfdfd;
-    color: #1f1f1f;
-  }
+  ${({ theme }) => theme.layoutCSS}
 `;
 
 const Shell = styled.section`
@@ -76,11 +19,11 @@ const Shell = styled.section`
 `;
 
 const HeroHeading = styled.h1`
-  ${typographyMixin(tokens, "heading", "hero")}
+  ${({ theme }) => theme.typographyMixin("heading", "xl")}
 `;
 
 const BodyCopy = styled.p`
-  ${typographyMixin(tokens, "body", "base")}
+  ${({ theme }) => theme.typographyMixin("body", "md")}
   max-width: 640px;
 `;
 
@@ -113,25 +56,24 @@ const Toggle = styled.button`
 export function App() {
   const [open, setOpen] = useState(false);
   return (
-    <>
+    <ThemeProvider theme={theme}>
       <GlobalStyles />
       <Shell>
         <div>
-          <HeroHeading>Typography tokens, meet CSS vars.</HeroHeading>
+          <HeroHeading>Typography tokens via theme.typographyMixin</HeroHeading>
           <BodyCopy>
-            Build semantic styles once and reuse them as mixins or CSS strings. This
-            example renders heading + body pairs using `typographyMixin` outside of a
-            theme context.
+            All semantic styles come from the typography data source used in
+            createTheme.
           </BodyCopy>
         </div>
       </Shell>
       <Drawer open={open}>
         <strong>Typography Tokens</strong>
-        <pre>{JSON.stringify(tokens, null, 2)}</pre>
+        <pre>{JSON.stringify(theme.typographyTokens, null, 2)}</pre>
       </Drawer>
       <Toggle onClick={() => setOpen(current => !current)}>
         {open ? "Hide" : "Show"} tokens
       </Toggle>
-    </>
+    </ThemeProvider>
   );
 }

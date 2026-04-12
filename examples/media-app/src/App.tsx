@@ -1,8 +1,15 @@
 import { useState } from "react";
+import { ThemeProvider, createGlobalStyle } from "styled-components";
 import styled from "styled-components";
-import { mediaQuery, DEFAULT_BREAKPOINTS } from "@4i4/theme-toolkit/media";
+import { theme } from "./theme";
 
-const breakpointRule = mediaQuery({ min: DEFAULT_BREAKPOINTS.md });
+const GlobalStyles = createGlobalStyle`
+  :root {
+    ${({ theme }) => theme.paletteCSS}
+    ${({ theme }) => theme.typographyCSS}
+  }
+  ${({ theme }) => theme.layoutCSS}
+`;
 
 const Wrapper = styled.section`
   min-height: 100vh;
@@ -15,16 +22,10 @@ const Wrapper = styled.section`
 const Box = styled.div`
   padding: 32px;
   border-radius: 24px;
-  background: #ffb347;
-  color: #1d1d1f;
+  background: #2251ff;
+  color: white;
   font-size: 18px;
-  transition: all 0.3s ease;
-
-  ${breakpointRule} {
-    background: #2251ff;
-    color: white;
-    transform: scale(1.05);
-  }
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.15);
 `;
 
 const Drawer = styled.aside<{ open: boolean }>`
@@ -55,27 +56,19 @@ const Toggle = styled.button`
 
 export function App() {
   const [open, setOpen] = useState(false);
-  const entries = Object.entries(DEFAULT_BREAKPOINTS);
-
   return (
-    <Wrapper>
-      <Box>
-        Resize past {DEFAULT_BREAKPOINTS.md}px to see the media query kick in.
-      </Box>
+    <ThemeProvider theme={theme}>
+      <GlobalStyles />
+      <Wrapper>
+        <Box>Media helpers live on theme.media.*</Box>
+      </Wrapper>
       <Drawer open={open}>
         <strong>Breakpoints</strong>
-        <ul>
-          {entries.map(([name, value]) => (
-            <li key={name}>
-              {name}: {value}px
-            </li>
-          ))}
-        </ul>
-        <pre>{breakpointRule}</pre>
+        <pre>{JSON.stringify(theme.breakpoints, null, 2)}</pre>
       </Drawer>
       <Toggle onClick={() => setOpen(current => !current)}>
         {open ? "Hide" : "Show"} tokens
       </Toggle>
-    </Wrapper>
+    </ThemeProvider>
   );
 }

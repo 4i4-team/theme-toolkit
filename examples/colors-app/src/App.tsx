@@ -1,31 +1,14 @@
 import { useState } from "react";
-import { createGlobalStyle } from "styled-components";
+import { ThemeProvider, createGlobalStyle } from "styled-components";
 import styled from "styled-components";
-import { buildPaletteTokens } from "@4i4/theme-toolkit/colors";
-
-const paletteSource = {
-  primary: {
-    base: "#2251ff",
-    text: "#fff",
-  },
-  accent: {
-    base: "#ff8a00",
-    text: "#1d1d1f",
-  },
-} as const;
-
-const { tokens, toCSS } = buildPaletteTokens(paletteSource, { prefix: "--brand" });
+import { theme } from "./theme";
 
 const GlobalStyles = createGlobalStyle`
   :root {
-    ${toCSS()}
+    ${({ theme }) => theme.paletteCSS}
+    ${({ theme }) => theme.typographyCSS}
   }
-
-  body {
-    margin: 0;
-    font-family: "Inter", sans-serif;
-    background: #f5f6fb;
-  }
+  ${({ theme }) => theme.layoutCSS}
 `;
 
 const Grid = styled.div`
@@ -34,6 +17,7 @@ const Grid = styled.div`
   place-items: center;
   gap: 24px;
   padding: 40px;
+  background: #f5f6fb;
 `;
 
 const Swatch = styled.div<{ name: string }>`
@@ -75,7 +59,7 @@ const Toggle = styled.button`
 export function App() {
   const [open, setOpen] = useState(false);
   return (
-    <>
+    <ThemeProvider theme={theme}>
       <GlobalStyles />
       <Grid>
         <Swatch name="primary">Primary</Swatch>
@@ -83,13 +67,11 @@ export function App() {
       </Grid>
       <Drawer open={open}>
         <strong>Palette Tokens</strong>
-        <pre>{JSON.stringify(tokens, null, 2)}</pre>
-        <strong>CSS Variables</strong>
-        <pre>{toCSS()}</pre>
+        <pre>{JSON.stringify(theme.paletteTokens, null, 2)}</pre>
       </Drawer>
       <Toggle onClick={() => setOpen(current => !current)}>
         {open ? "Hide" : "Show"} tokens
       </Toggle>
-    </>
+    </ThemeProvider>
   );
 }

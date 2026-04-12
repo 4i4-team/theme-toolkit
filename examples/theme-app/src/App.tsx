@@ -8,14 +8,7 @@ const GlobalStyles = createGlobalStyle`
     ${({ theme }) => theme.paletteCSS}
     ${({ theme }) => theme.typographyCSS}
   }
-
   ${({ theme }) => theme.layoutCSS}
-
-  body {
-    margin: 0;
-    font-family: var(--brand-font-family--base, Inter, sans-serif);
-    background: #f4f6fb;
-  }
 `;
 
 const Hero = styled.section`

@@ -4,8 +4,7 @@ import {
   normalizeRecipeGroup,
   sanitizeIdentifierSegment,
 } from "../../core/common";
-import type { NormalizedRecipeGroup, RecipeResponsiveOverride, RecipeStyleBlock } from "../../core/common";
-import type { MediaHelpers } from "../media";
+import type { CssRuleNode, NormalizedRecipeGroup, RecipeResponsiveOverride, RecipeStyleBlock } from "../../core/common";
 import type {
   PaletteBuilderOptions,
   PaletteCollection,
@@ -28,16 +27,14 @@ export function buildPaletteRecipes<TColor extends string, TBreakpoint extends s
 ): PaletteRecipeRegistry<TBreakpoint> {
   if (!source || !Object.keys(source).length) {
     return {
-      css: "",
-      selectors: {},
+      nodes: [],
       classes: {},
       styles: {},
     };
   }
 
   const allowedBreakpoints = Object.keys(options.breakpoints) as TBreakpoint[];
-  const cssParts: string[] = [];
-  const selectors: Record<string, Record<string, string>> = {};
+  const nodes: CssRuleNode[] = [];
   const classes: Record<string, Record<string, string>> = {};
   const styles: Record<string, PaletteRecipeStyleMap<TBreakpoint>> = {};
 
@@ -54,17 +51,13 @@ export function buildPaletteRecipes<TColor extends string, TBreakpoint extends s
     styles[groupName] = interpreted;
 
     const selectorPrefix = buildRecipeSelectorPrefix(options.classPrefix, groupName);
-    const { css, variants } = generateRecipeCss(interpreted, {
+    const { nodes: groupNodes, variants } = generateRecipeCss(interpreted, {
       media: options.media,
       selectorBuilder: variantName =>
         `.${selectorPrefix}-${sanitizeIdentifierSegment(variantName)}`,
     });
 
-    if (css) {
-      cssParts.push(css);
-    }
-
-    selectors[groupName] = variants;
+    nodes.push(...groupNodes);
 
     const classEntries = assignRecipeClasses(variants, {
       prefix: selectorPrefix,
@@ -77,8 +70,7 @@ export function buildPaletteRecipes<TColor extends string, TBreakpoint extends s
   });
 
   return {
-    css: cssParts.join("\n"),
-    selectors,
+    nodes,
     classes,
     styles,
   };

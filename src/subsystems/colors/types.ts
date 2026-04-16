@@ -1,11 +1,12 @@
 import type {
   Breakpoints,
+  CssRuleNode,
   InterpretedRecipeVariant,
   RecipeGroupDefinition,
   PropertyValue,
   NormalizedPropertyValue,
 } from "../../core/common";
-import type { MediaHelpers } from "../media";
+import type { MediaDescriptor } from "../../core/media";
 
 type Colors = "main" | "dark" | "darker" | "light" | "lighter" | "text";
 type ColorSet = Partial<Record<Colors, string>>;
@@ -76,14 +77,13 @@ export type PaletteRecipeStyleMap<TBreakpoint extends string> = Record<
 >;
 
 export type PaletteRecipeRegistry<TBreakpoint extends string> = {
-  css: string;
-  selectors: Record<string, Record<string, string>>;
+  nodes: CssRuleNode[];
   classes: Record<string, Record<string, string>>;
   styles: Record<string, PaletteRecipeStyleMap<TBreakpoint>>;
 };
 
 export type PaletteRecipeBuildOptions<TBreakpoint extends string> = {
   breakpoints: Breakpoints<TBreakpoint>;
-  media: MediaHelpers<TBreakpoint>;
+  media: MediaDescriptor<TBreakpoint>;
   classPrefix?: string;
 };

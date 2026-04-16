@@ -7,7 +7,7 @@ import type {
   PalettePropertyValue,
 } from "./types";
 import type { SubsystemThemeHelper } from "../../core/theme/helpers";
-import type { MediaHelpers } from "../media";
+import type { MediaDescriptor } from "../../core/media";
 import { finalizePaletteNormalization } from "./normalize";
 import { tokenizePaletteProperty, mapPaletteCssVariables } from "./tokens";
 import { buildPaletteRecipes } from "./recipes";
@@ -30,13 +30,13 @@ export const createPaletteThemeHelper = (): SubsystemThemeHelper =>
       tokens: Record<string, PaletteTokens>,
       context: {
         breakpoints: Record<string, number>;
-        media: MediaHelpers<string>;
+        media: MediaDescriptor<string>;
         options?: PaletteBuilderOptions;
       },
     ) =>
       buildPaletteRecipes(recipes, tokens, {
         breakpoints: context.breakpoints as Record<string, number>,
-        media: context.media as MediaHelpers<string>,
+        media: context.media as MediaDescriptor<string>,
         classPrefix: (context.options as PaletteBuilderOptions | undefined)?.classPrefix,
       }),
   }) as unknown as SubsystemThemeHelper;

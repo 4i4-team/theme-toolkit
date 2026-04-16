@@ -1,4 +1,5 @@
-import type { MediaHelpers } from "../../../subsystems/media";
+import type { MediaDescriptor } from "../../media";
+import type { CssDeclaration, CssRuleNode } from "../cssNodes";
 import type { RecipeResponsiveOverride } from "../types";
 
 export type RecipeStyleBlock = Record<string, string | number>;
@@ -17,81 +18,61 @@ export type InterpretedRecipeGroup<TBreakpoint extends string> = Record<
   InterpretedRecipeVariant<TBreakpoint>
 >;
 
-export type RenderedRecipeCss = {
-  css: string;
+export type GenerateRecipeCssResult = {
+  nodes: CssRuleNode[];
   variants: Record<string, string>;
 };
 
 export type GenerateRecipeCssOptions<TBreakpoint extends string> = {
-  media: MediaHelpers<TBreakpoint>;
+  media: MediaDescriptor<TBreakpoint>;
   selectorBuilder: (variantName: string) => string;
-  formatStyle?: (property: string, value: string | number) => string;
 };
 
-const defaultFormatStyle = (property: string, value: string | number): string =>
-  `${property}: ${value};`;
+const RESERVED_KEYS = new Set(["breakpoint", "query", "variant", "target"]);
 
 export const generateRecipeCss = <TBreakpoint extends string>(
   group: InterpretedRecipeGroup<TBreakpoint>,
   options: GenerateRecipeCssOptions<TBreakpoint>,
-): RenderedRecipeCss => {
-  const formatStyle = options.formatStyle ?? defaultFormatStyle;
-  const variantCssEntries: string[] = [];
-  const variantMap: Record<string, string> = {};
+): GenerateRecipeCssResult => {
+  const nodes: CssRuleNode[] = [];
+  const variants: Record<string, string> = {};
 
   Object.entries(group).forEach(([variantName, variant]) => {
     const selector = options.selectorBuilder(variantName);
-    variantMap[variantName] = selector;
+    variants[variantName] = selector;
 
-    const baseBlock = serializeStyleBlock(variant.base, formatStyle);
-    if (baseBlock) {
-      variantCssEntries.push(`${selector} {\n${baseBlock}\n}`);
+    const baseDeclarations = toDeclarations(variant.base, false);
+    if (baseDeclarations.length) {
+      nodes.push({ kind: "rule", selector, declarations: baseDeclarations });
     }
 
     variant.responsive.forEach(entry => {
       const mediaGroup = options.media[entry.breakpoint];
-      if (!mediaGroup) {
-        return;
-      }
+      if (!mediaGroup) return;
+      const mediaQuery = mediaGroup[entry.query];
+      if (!mediaQuery) return;
 
-      const mediaTemplate = mediaGroup[entry.query];
-      if (!mediaTemplate) {
-        return;
-      }
+      const declarations = toDeclarations(entry as RecipeStyleBlock, true);
+      if (!declarations.length) return;
 
-      const responsiveBlock = serializeStyleBlock(entry as RecipeStyleBlock, formatStyle, true);
-      if (!responsiveBlock) {
-        return;
-      }
-
-      variantCssEntries.push(
-        mediaTemplate`
-          ${selector} {
-            ${responsiveBlock}
-          }
-        `.toString(),
-      );
+      nodes.push({
+        kind: "rule",
+        selector,
+        media: mediaQuery,
+        declarations,
+      });
     });
   });
 
-  return {
-    css: variantCssEntries.filter(Boolean).join("\n"),
-    variants: variantMap,
-  };
+  return { nodes, variants };
 };
 
-const serializeStyleBlock = (
-  styles: Record<string, string | number>,
-  formatStyle: (property: string, value: string | number) => string,
-  skipSpecialKeys = false,
-): string => {
-  const entries = Object.entries(styles).filter(([key]) =>
-    skipSpecialKeys ? !["breakpoint", "query", "variant", "target"].includes(key) : true,
+const toDeclarations = (
+  block: Record<string, string | number>,
+  skipReserved: boolean,
+): CssDeclaration[] => {
+  const entries = Object.entries(block).filter(([key]) =>
+    skipReserved ? !RESERVED_KEYS.has(key) : true,
   );
-  if (!entries.length) {
-    return "";
-  }
-  return entries
-    .map(([property, value]) => `  ${formatStyle(property, value)}`)
-    .join("\n");
+  return entries.map(([property, value]) => ({ property, value }));
 };

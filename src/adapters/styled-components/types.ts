@@ -5,17 +5,20 @@ import type {
 import type { TypographyTokens } from "../../subsystems/typography";
 import type { MediaHelpers } from "../../subsystems/media";
 import type { PaletteTokens, PaletteRecipeStyleMap } from "../../subsystems/colors";
+import type { CssNode, CssRuleNode, CssVariablesNode } from "../../core/common";
 
 export interface ThemeAugmentation {
   media: MediaHelpers<string>;
+  css: string;
+  nodes: CssNode[];
   colors: {
     source?: Record<string, unknown>;
     tokens: Record<string, PaletteTokens>;
-    css: string;
+    variables: CssVariablesNode[];
     lighten: (name: string, percent: number) => string;
     darken: (name: string, percent: number) => string;
     recipes: {
-      css: string;
+      nodes: CssRuleNode[];
       classes: Record<string, Record<string, string>>;
       styles: Record<string, PaletteRecipeStyleMap<string>>;
       getClass: (group: string, variant: string) => string | undefined;

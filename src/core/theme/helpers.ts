@@ -1,4 +1,5 @@
 import type {
+  CssRuleNode,
   CssVariablesNode,
   InterpretedRecipeVariant,
   NormalizedPropertyValue,
@@ -84,8 +85,7 @@ export type RecipeStyles<TBreakpoint extends string, TRecipeStyle extends Recipe
 >;
 
 export type RecipeOutputs<TBreakpoint extends string, TRecipeStyle extends RecipeStyleBlock> = {
-  css: string;
-  selectors: Record<string, Record<string, string>>;
+  nodes: CssRuleNode[];
   classes: Record<string, Record<string, string>>;
   styles: RecipeStyles<TBreakpoint, TRecipeStyle>;
 };

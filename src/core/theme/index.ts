@@ -4,7 +4,7 @@ import type {
   ThemeWithMedia,
   MediaGroup,
 } from "../../subsystems/media";
-import type { Breakpoints, NormalizedPropertyValue } from "../common";
+import type { Breakpoints, CssNode, CssRuleNode, CssVariablesNode, NormalizedPropertyValue } from "../common";
 import {
   normalizePropertyValue,
   generateTokens,
@@ -12,6 +12,12 @@ import {
   renderToCssString,
   normalizeCssVariablePrefix,
 } from "../common";
+import {
+  buildMediaDescriptor,
+  mediaQueryString,
+  resolveMediaConfig as resolveCoreMediaConfig,
+} from "../media";
+import type { MediaDescriptor } from "../media";
 import { css } from "styled-components";
 import { createPaletteThemeHelper, lighten, darken } from "../../subsystems/colors";
 import type {
@@ -46,7 +52,7 @@ type ThemeWithBreakpoints<T extends string, TPaletteKey extends string> = {
 };
 
 type PaletteRecipeNamespace<TBreakpoint extends string> = {
-  readonly css: string;
+  readonly nodes: CssRuleNode[];
   readonly classes: Record<string, Record<string, string>>;
   readonly styles: Record<string, PaletteRecipeStyleMap<TBreakpoint>>;
   getClass: (group: string, variant: string) => string | undefined;
@@ -55,7 +61,7 @@ type PaletteRecipeNamespace<TBreakpoint extends string> = {
 type PaletteThemeNamespace<TPaletteKey extends string, TBreakpoint extends string> = {
   readonly source?: PaletteCollection<TPaletteKey>;
   readonly tokens: Record<TPaletteKey, PaletteTokens>;
-  readonly css: string;
+  readonly variables: CssVariablesNode[];
   lighten: (name: TPaletteKey, percent: number) => string;
   darken: (name: TPaletteKey, percent: number) => string;
   readonly recipes: PaletteRecipeNamespace<TBreakpoint>;
@@ -63,6 +69,11 @@ type PaletteThemeNamespace<TPaletteKey extends string, TBreakpoint extends strin
 
 type ThemeWithPalette<TPaletteKey extends string, TBreakpoint extends string> = {
   colors: PaletteThemeNamespace<TPaletteKey, TBreakpoint>;
+};
+
+type ThemeWithAggregateCss = {
+  readonly css: string;
+  readonly nodes: CssNode[];
 };
 
 type TypographyNamespace = {
@@ -102,8 +113,7 @@ type ThemeWithLayout<T extends string> = {
 };
 
 type PaletteRecipeOutput<TBreakpoint extends string> = {
-  css: string;
-  selectors: Record<string, Record<string, string>>;
+  nodes: CssRuleNode[];
   classes: Record<string, Record<string, string>>;
   styles: Record<string, PaletteRecipeStyleMap<TBreakpoint>>;
 };
@@ -216,14 +226,16 @@ export function createTheme<
   ThemeWithMedia<T> &
   ThemeWithPalette<TPaletteKey, T> &
   ThemeWithTypography &
-  ThemeWithLayout<T> {
+  ThemeWithLayout<T> &
+  ThemeWithAggregateCss {
   const paletteHelper = createPaletteThemeHelper();
   const clone = { ...theme } as TTheme &
     ThemeWithMedia<T> &
     ThemeWithBreakpoints<T, TPaletteKey> &
     ThemeWithPalette<TPaletteKey, T> &
     ThemeWithTypography &
-    ThemeWithLayout<T>;
+    ThemeWithLayout<T> &
+    ThemeWithAggregateCss;
 
   const normalizePaletteCollection = (
     palette: PaletteCollection<TPaletteKey> | undefined,
@@ -288,11 +300,11 @@ export function createTheme<
         : baseToken;
     });
 
-  const buildPaletteCss = (
+  const buildPaletteVariableNodes = (
     tokens: Record<TPaletteKey, PaletteTokens>,
-  ): string => {
+  ): CssVariablesNode[] => {
     if (!Object.keys(tokens).length) {
-      return "";
+      return [];
     }
 
     const prefix = normalizeCssVariablePrefix(options?.palette?.prefix);
@@ -300,18 +312,29 @@ export function createTheme<
       ? paletteHelper.mapCssVariables(tokens, prefix)
       : generateCssVariables(tokens, { prefix });
 
-    return renderToCssString([
+    return [
       {
         kind: "variables",
         selector: ":root",
         variables,
       },
-    ]);
+    ];
+  };
+
+  const buildMediaDescriptorInstance = (
+    breakpoints: Breakpoints<T>,
+    mediaOptions: MediaConfig,
+  ): MediaDescriptor<T> => {
+    const resolved = resolveCoreMediaConfig(mediaOptions);
+    return buildMediaDescriptor(breakpoints, opts =>
+      mediaQueryString(opts, resolved),
+    );
   };
 
   let cachedBreakpoints = clone.breakpoints;
   let cachedMediaConfig = resolveMediaConfig(clone, options?.media);
   let cachedMedia = media(cachedBreakpoints, cachedMediaConfig);
+  let cachedMediaDescriptor = buildMediaDescriptorInstance(cachedBreakpoints, cachedMediaConfig);
   let cachedPaletteSource = clone.palette;
   let cachedPaletteBreakpoints = clone.breakpoints;
   let cachedNormalizedPalette = normalizePaletteCollection(
@@ -319,21 +342,20 @@ export function createTheme<
     cachedPaletteBreakpoints,
   );
   let cachedPaletteTokens = buildPaletteTokensFromNormalized(cachedNormalizedPalette);
-  let cachedPaletteCSS = buildPaletteCss(cachedPaletteTokens);
+  let cachedPaletteVariables = buildPaletteVariableNodes(cachedPaletteTokens);
   let cachedPaletteRecipesSource = clone.paletteRecipes;
   let cachedPaletteRecipeTokens = cachedPaletteTokens;
   let cachedPaletteRecipeBreakpoints = cachedPaletteBreakpoints;
-  let cachedPaletteRecipeMedia = cachedMedia;
+  let cachedPaletteRecipeMedia = cachedMediaDescriptor;
   const buildPaletteRecipesOutput = (
     recipes: PaletteRecipeSource<T> | undefined,
     tokens: Record<TPaletteKey, PaletteTokens>,
     breakpoints: Breakpoints<T>,
-    mediaHelpers: MediaHelpers<T>,
+    mediaDescriptor: MediaDescriptor<T>,
   ): PaletteRecipeOutput<T> => {
     if (!paletteHelper.buildRecipes) {
       return {
-        css: "",
-        selectors: {},
+        nodes: [],
         classes: {},
         styles: {},
       };
@@ -341,7 +363,7 @@ export function createTheme<
 
     return paletteHelper.buildRecipes(recipes, tokens, {
       breakpoints,
-      media: mediaHelpers,
+      media: mediaDescriptor,
       options: options?.palette,
     }) as PaletteRecipeOutput<T>;
   };
@@ -367,7 +389,7 @@ export function createTheme<
         currentBreakpoints,
       );
       cachedPaletteTokens = buildPaletteTokensFromNormalized(cachedNormalizedPalette);
-      cachedPaletteCSS = buildPaletteCss(cachedPaletteTokens);
+      cachedPaletteVariables = buildPaletteVariableNodes(cachedPaletteTokens);
       cachedPaletteRecipeTokens = cachedPaletteTokens;
     }
   };
@@ -377,9 +399,9 @@ export function createTheme<
     return cachedPaletteTokens;
   };
 
-  const getPaletteCss = () => {
+  const getPaletteVariables = () => {
     syncPalette();
-    return cachedPaletteCSS;
+    return cachedPaletteVariables;
   };
   const typographyHelper = createTypographyThemeHelper();
   let rawTypographySource = clone.typography as TypographySource | undefined;
@@ -405,22 +427,24 @@ export function createTheme<
     options?.layout,
   );
 
+  const refreshMediaIfStale = (): void => {
+    const currentBreakpoints = clone.breakpoints;
+    const currentConfig = resolveMediaConfig(clone, options?.media);
+    const configChanged =
+      currentConfig.unit !== cachedMediaConfig.unit ||
+      currentConfig.baseFontSize !== cachedMediaConfig.baseFontSize;
+
+    if (currentBreakpoints !== cachedBreakpoints || configChanged) {
+      cachedBreakpoints = currentBreakpoints;
+      cachedMediaConfig = currentConfig;
+      cachedMedia = media(currentBreakpoints, currentConfig);
+      cachedMediaDescriptor = buildMediaDescriptorInstance(currentBreakpoints, currentConfig);
+    }
+  };
+
   Object.defineProperty(clone, "media", {
     get() {
-      const currentTheme = this as typeof clone;
-      const currentBreakpoints = currentTheme.breakpoints;
-      const currentConfig = resolveMediaConfig(currentTheme, options?.media);
-
-      const configChanged =
-        currentConfig.unit !== cachedMediaConfig.unit ||
-        currentConfig.baseFontSize !== cachedMediaConfig.baseFontSize;
-
-      if (currentBreakpoints !== cachedBreakpoints || configChanged) {
-        cachedBreakpoints = currentBreakpoints;
-        cachedMediaConfig = currentConfig;
-        cachedMedia = media(currentBreakpoints, currentConfig);
-      }
-
+      refreshMediaIfStale();
       return cachedMedia;
     },
     enumerable: true,
@@ -429,35 +453,34 @@ export function createTheme<
 
   const ensurePaletteRecipes = () => {
     syncPalette();
-    const currentTheme = clone as typeof clone;
+    refreshMediaIfStale();
     const tokens = getPaletteTokens();
-    const recipesSource = currentTheme.paletteRecipes;
-    const mediaHelpers = clone.media;
-    const recipeBreakpoints = currentTheme.breakpoints;
+    const recipesSource = clone.paletteRecipes;
+    const recipeBreakpoints = clone.breakpoints;
 
     if (
       recipesSource !== cachedPaletteRecipesSource ||
       tokens !== cachedPaletteRecipeTokens ||
-      mediaHelpers !== cachedPaletteRecipeMedia ||
+      cachedMediaDescriptor !== cachedPaletteRecipeMedia ||
       recipeBreakpoints !== cachedPaletteRecipeBreakpoints
     ) {
       cachedPaletteRecipesSource = recipesSource;
       cachedPaletteRecipeTokens = tokens;
-      cachedPaletteRecipeMedia = mediaHelpers;
+      cachedPaletteRecipeMedia = cachedMediaDescriptor;
       cachedPaletteRecipeBreakpoints = recipeBreakpoints;
       cachedPaletteRecipes = buildPaletteRecipesOutput(
         recipesSource,
         tokens,
         recipeBreakpoints,
-        mediaHelpers,
+        cachedMediaDescriptor,
       );
     }
   };
 
   const paletteRecipesNamespace: PaletteRecipeNamespace<T> = {
-    get css() {
+    get nodes() {
       ensurePaletteRecipes();
-      return cachedPaletteRecipes.css;
+      return cachedPaletteRecipes.nodes;
     },
     get classes() {
       ensurePaletteRecipes();
@@ -489,8 +512,8 @@ export function createTheme<
     get tokens() {
       return getPaletteTokens();
     },
-    get css() {
-      return getPaletteCss();
+    get variables() {
+      return getPaletteVariables();
     },
     lighten: (name, percent) => lighten(resolveBaseColor(name), percent),
     darken: (name, percent) => darken(resolveBaseColor(name), percent),
@@ -728,6 +751,38 @@ export function createTheme<
     value: (name: string) => {
       ensureLayout();
       return cachedLayout.layoutGridMixin(name);
+    },
+    enumerable: true,
+    configurable: true,
+  });
+
+  const collectNodes = (): CssNode[] => {
+    const nodes: CssNode[] = [];
+    nodes.push(...paletteNamespace.variables);
+    nodes.push(...paletteRecipesNamespace.nodes);
+    return nodes;
+  };
+
+  Object.defineProperty(clone, "nodes", {
+    get() {
+      return collectNodes();
+    },
+    enumerable: true,
+    configurable: true,
+  });
+
+  Object.defineProperty(clone, "css", {
+    get() {
+      const rendered = renderToCssString(collectNodes());
+      const legacyParts: string[] = [];
+      const typographyCss = typographyNamespace.css;
+      if (typographyCss) legacyParts.push(typographyCss);
+      ensureLayout();
+      if (cachedLayout.layoutCSS) legacyParts.push(cachedLayout.layoutCSS);
+      const legacy = legacyParts.join("\n\n");
+      if (!rendered) return legacy;
+      if (!legacy) return rendered;
+      return `${rendered}\n\n${legacy}`;
     },
     enumerable: true,
     configurable: true,

@@ -93,8 +93,8 @@ Merge rules the core applies in stage 6:
 
 Execute section 3 against the existing code.
 
-- [ ] Extend the subsystem helper contract in `src/theme/helpers.ts` with the new hooks (`normalizeRecipe`, `interpretRecipe`, `mapRecipeCss`, `buildSlice`, `buildGlobals`, `dependsOn`, `transformResponsiveCss?`).
-- [ ] Implement the shared core stage `expandResponsiveCssVariables` in `src/common/` (merge rules + per-breakpoint `{ media, variables }` output).
+- [ ] Extend the subsystem helper contract in `src/core/theme/helpers.ts` with the new hooks (`normalizeRecipe`, `interpretRecipe`, `mapRecipeCss`, `buildSlice`, `buildGlobals`, `dependsOn`, `transformResponsiveCss?`).
+- [x] Implement the shared core stage `expandResponsiveCssVariables` in `src/core/common/` (merge rules + per-breakpoint `{ media, variables }` output). Landed in `5666db1`; not yet wired into `createTheme`.
 - [ ] Implement cycle-safe recipe interpretation loop in the core (lazy memoized `resolveRecipeVariant`).
 - [ ] Refactor `createTheme` to run a generic per-subsystem reducer loop driving the property and recipe pipelines via the helper contract. No more hard-wired palette/typography/layout code paths.
 - [ ] Port the colors subsystem to the refined contract (update `createPaletteThemeHelper` — most of it already matches). Validate against the colors example app.

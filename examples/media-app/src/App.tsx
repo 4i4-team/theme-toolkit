@@ -5,8 +5,8 @@ import { theme } from "./theme";
 
 const GlobalStyles = createGlobalStyle`
   :root {
-    ${({ theme }) => theme.paletteCSS}
-    ${({ theme }) => theme.typographyCSS}
+    ${({ theme }) => theme.colors.css}
+    ${({ theme }) => theme.typography.css}
   }
   ${({ theme }) => theme.layoutCSS}
 `;

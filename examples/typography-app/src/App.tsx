@@ -5,8 +5,8 @@ import { theme } from "./theme";
 
 const GlobalStyles = createGlobalStyle`
   :root {
-    ${({ theme }) => theme.paletteCSS}
-    ${({ theme }) => theme.typographyCSS}
+    ${({ theme }) => theme.colors.css}
+    ${({ theme }) => theme.typography.css}
   }
   ${({ theme }) => theme.layoutCSS}
 `;
@@ -19,11 +19,11 @@ const Shell = styled.section`
 `;
 
 const HeroHeading = styled.h1`
-  ${({ theme }) => theme.typographyMixin("heading", "xl")}
+  ${({ theme }) => theme.typography.mixin("heading", "xl")}
 `;
 
 const BodyCopy = styled.p`
-  ${({ theme }) => theme.typographyMixin("body", "md")}
+  ${({ theme }) => theme.typography.mixin("body", "md")}
   max-width: 640px;
 `;
 
@@ -60,7 +60,7 @@ export function App() {
       <GlobalStyles />
       <Shell>
         <div>
-          <HeroHeading>Typography tokens via theme.typographyMixin</HeroHeading>
+          <HeroHeading>Typography tokens via theme.typography.mixin</HeroHeading>
           <BodyCopy>
             All semantic styles come from the typography data source used in
             createTheme.
@@ -69,7 +69,7 @@ export function App() {
       </Shell>
       <Drawer open={open}>
         <strong>Typography Tokens</strong>
-        <pre>{JSON.stringify(theme.typographyTokens, null, 2)}</pre>
+        <pre>{JSON.stringify(theme.typography.tokens, null, 2)}</pre>
       </Drawer>
       <Toggle onClick={() => setOpen(current => !current)}>
         {open ? "Hide" : "Show"} tokens

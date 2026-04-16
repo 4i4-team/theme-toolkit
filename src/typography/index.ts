@@ -1,4 +1,5 @@
 import { css } from "styled-components";
+import type { SubsystemThemeHelper } from "../theme/helpers";
 
 export type TypographyScaleKey =
   | "xs"
@@ -254,3 +255,39 @@ export const typographyMixin = (
 
   return mixin;
 };
+
+type TypographyThemeSlice = {
+  source?: TypographySource;
+  tokens?: TypographyTokens;
+  css: string;
+  mixin: (group: string, variant: string) => ReturnType<typeof typographyMixin>;
+};
+
+const createMissingTypographySlice = (): TypographyThemeSlice => ({
+  source: undefined,
+  tokens: undefined,
+  css: "",
+  mixin: () => {
+    throw new Error("Typography source is not defined.");
+  },
+});
+
+export const createTypographyThemeHelper = (): SubsystemThemeHelper =>
+  ({
+    key: "typography",
+    buildHelpers: (source?: TypographySource, options?: TypographyBuilderOptions) => {
+      if (!source) {
+        return createMissingTypographySlice();
+      }
+
+      const tokens = buildTypographyTokens(source, { unit: options?.unit ?? "px" });
+      const css = serializeTypographyToCSS(tokens, options?.prefix);
+
+      return {
+        source,
+        tokens,
+        css,
+        mixin: (group: string, variant: string) => typographyMixin(tokens, group, variant),
+      } satisfies TypographyThemeSlice;
+    },
+  }) as unknown as SubsystemThemeHelper;

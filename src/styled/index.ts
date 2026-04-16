@@ -4,17 +4,29 @@ import type {
 } from "../layout";
 import type { TypographyTokens } from "../typography";
 import type { MediaHelpers } from "../media";
-import type { PaletteTokens } from "../colors";
+import type { PaletteTokens, PaletteRecipeStyleMap } from "../colors";
 
 export interface ThemeAugmentation {
   media: MediaHelpers<string>;
-  paletteTokens: Record<string, PaletteTokens>;
-  paletteCSS: string;
-  lightenColor: (name: string, percent: number) => string;
-  darkenColor: (name: string, percent: number) => string;
-  typographyTokens?: TypographyTokens;
-  typographyCSS: string;
-  typographyMixin: (group: string, variant: string) => ReturnType<typeof import("../typography").typographyMixin>;
+  colors: {
+    source?: Record<string, unknown>;
+    tokens: Record<string, PaletteTokens>;
+    css: string;
+    lighten: (name: string, percent: number) => string;
+    darken: (name: string, percent: number) => string;
+    recipes: {
+      css: string;
+      classes: Record<string, Record<string, string>>;
+      styles: Record<string, PaletteRecipeStyleMap<string>>;
+      getClass: (group: string, variant: string) => string | undefined;
+    };
+  };
+  typography: {
+    source?: Record<string, unknown>;
+    tokens?: TypographyTokens;
+    css: string;
+    mixin: (group: string, variant: string) => ReturnType<typeof import("styled-components").css>;
+  };
   layoutTokens?: LayoutTokens<string>;
   layoutCSS: string;
   layoutSpacing: LayoutHelpers<string>["spacing"];

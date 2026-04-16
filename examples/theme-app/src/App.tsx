@@ -5,8 +5,8 @@ import { theme } from "./theme";
 
 const GlobalStyles = createGlobalStyle`
   :root {
-    ${({ theme }) => theme.paletteCSS}
-    ${({ theme }) => theme.typographyCSS}
+    ${({ theme }) => theme.colors.css}
+    ${({ theme }) => theme.typography.css}
   }
   ${({ theme }) => theme.layoutCSS}
 `;
@@ -32,11 +32,11 @@ const Card = styled.article`
 `;
 
 const Title = styled.h1`
-  ${({ theme }) => theme.typographyMixin("heading", "xl")}
+  ${({ theme }) => theme.typography.mixin("heading", "xl")}
 `;
 
 const Copy = styled.p`
-  ${({ theme }) => theme.typographyMixin("body", "md")}
+  ${({ theme }) => theme.typography.mixin("body", "md")}
 `;
 
 const Drawer = styled.aside<{ open: boolean }>`
@@ -76,7 +76,7 @@ export function App() {
           <Grid>
             <Card>
               <h2>Palette Tokens</h2>
-              <Copy>Primary main: {theme.paletteTokens.primary.variants.main}</Copy>
+              <Copy>Primary main: {theme.colors.tokens.primary.variants.main}</Copy>
             </Card>
             <Card>
               <h2>Typography</h2>
@@ -91,9 +91,9 @@ export function App() {
       </Hero>
       <Drawer open={open}>
         <strong>Palette Tokens</strong>
-        <pre>{JSON.stringify(theme.paletteTokens, null, 2)}</pre>
+        <pre>{JSON.stringify(theme.colors.tokens, null, 2)}</pre>
         <strong>Typography Tokens</strong>
-        <pre>{JSON.stringify(theme.typographyTokens, null, 2)}</pre>
+        <pre>{JSON.stringify(theme.typography.tokens, null, 2)}</pre>
         <strong>Layout Tokens</strong>
         <pre>{JSON.stringify(theme.layoutTokens, null, 2)}</pre>
       </Drawer>

@@ -17,8 +17,8 @@ import { Tabs } from "./components/Tabs";
 
 const GlobalStyles = createGlobalStyle`
   :root {
-    ${({ theme }) => theme.paletteCSS}
-    ${({ theme }) => theme.typographyCSS}
+    ${({ theme }) => theme.colors.css}
+    ${({ theme }) => theme.typography.css}
   }
   
   * {
@@ -39,7 +39,7 @@ const Block = styled.section`
 
 
 const SectionTitle = styled.h2`
-  ${({ theme }) => theme.typographyMixin("heading", "xl")}
+  ${({ theme }) => theme.typography.mixin("heading", "xl")}
   margin-top: 48px;
 `;
 
@@ -74,7 +74,7 @@ const OverlayHeader = styled.header`
 `;
 
 const OverlayHeading = styled.h2`
-  ${({ theme }) => theme.typographyMixin("heading", "xl")}
+  ${({ theme }) => theme.typography.mixin("heading", "xl")}
   margin: 0;
 `;
 

@@ -37,8 +37,8 @@ const theme = createTheme(
 ```
 
 - `theme.media` exposes breakpoint helpers (`min`, `max`, `exact`, `between`).
-- `theme.paletteTokens`, `theme.paletteCSS`, `theme.lightenColor`/`darkenColor` keep palettes in sync with your raw sources.
-- `theme.typographyTokens`, `theme.typographyMixin`, and `theme.typographyCSS` deliver semantic text helpers.
+- `theme.colors.tokens`, `theme.colors.css`, and `theme.colors.recipes` keep both palette tokens and ready-to-use color recipes in sync with your raw sources.
+- `theme.typography.tokens`, `theme.typography.mixin`, and `theme.typography.css` deliver semantic text helpers.
 - `theme.layout*` mirrors the new layout builder: spacing/gutter lookups, columns/container/style mixins, and a ready-to-use CSS bundle via `theme.layoutCSS`.
 
 ## Documentation

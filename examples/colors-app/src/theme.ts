@@ -1,8 +1,60 @@
 import { DEFAULT_BREAKPOINTS, createTheme } from "@4i4/theme-toolkit";
 
 const paletteSource = {
-  primary: { base: "#2251ff", text: "#fff" },
-  accent: { base: "#ff8a00", text: "#1d1d1f" },
+  primary: {
+    base: "#2251ff",
+    text: "#fff",
+    variants: {
+      dark: "#1a3fcc",
+      100: "#eef3ff",
+    },
+  },
+  accent: {
+    base: "#ff8a00",
+    text: "#1d1d1f",
+    steps: [50, 100, 200, 300, 400, 500, 600],
+    lightenBy: 8,
+    darkenBy: 12,
+  },
+  neutral: {
+    base: "#1f2533",
+    text: "#ffffff",
+  },
+} as const;
+
+const paletteRecipes = {
+  surfaces: {
+    subtle: {
+      background: "neutral.light",
+      color: "neutral.text",
+      borderColor: "neutral.dark",
+    },
+    brand: {
+      background: "primary.100",
+      color: "primary.text",
+      borderColor: "primary.dark",
+    },
+    contrast: {
+      background: "neutral.darker",
+      color: "neutral.text",
+      borderColor: "neutral.dark",
+    },
+  },
+  buttons: {
+    solid: {
+      background: "primary",
+      color: "primary.text",
+      borderColor: "primary.dark",
+      outline: "2px solid",
+      outlineColor: "primary.dark",
+    },
+    outline: {
+      background: "transparent",
+      color: "primary",
+      borderColor: "primary",
+      responsive: [{ breakpoint: "md", color: "accent", borderColor: "accent" }],
+    },
+  },
 } as const;
 
 const typographySource = {
@@ -94,10 +146,12 @@ export const theme = createTheme(
   {
     breakpoints: DEFAULT_BREAKPOINTS,
     palette: paletteSource,
+    paletteRecipes,
     typography: typographySource,
     layout: layoutSource,
   },
   {
+    palette: { prefix: "--brand", classPrefix: "brand-color" },
     layout: { prefix: "--brand" },
     typography: { prefix: "--brand", unit: "rem" },
   },

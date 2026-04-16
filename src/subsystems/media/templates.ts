@@ -1,7 +1,6 @@
 import { css } from "styled-components";
 import { Interpolation } from "styled-components/dist/types";
-import type { MediaDescriptor, MediaGroupDescriptor, MediaVariant } from "../common";
-import type { MediaQueryOptions } from "../common/media";
+import type { MediaDescriptor, MediaGroupDescriptor, MediaVariant, MediaQueryOptions } from "../../core/media";
 
 type MediaTemplate = (
   styles: TemplateStringsArray,

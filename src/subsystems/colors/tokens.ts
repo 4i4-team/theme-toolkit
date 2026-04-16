@@ -4,7 +4,7 @@ import type {
   PaletteVariantMap,
 } from "./types";
 import { lighten, darken } from "./utils";
-import { sanitizeIdentifierSegment } from "../common";
+import { sanitizeIdentifierSegment } from "../../core/common";
 
 const DEFAULT_STEPS = ["light", "lighter", "dark", "darker"];
 

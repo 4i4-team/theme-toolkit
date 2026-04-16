@@ -4,7 +4,7 @@ import type {
   RecipeGroupDefinition,
   PropertyValue,
   NormalizedPropertyValue,
-} from "../common";
+} from "../../core/common";
 import type { MediaHelpers } from "../media";
 
 type Colors = "main" | "dark" | "darker" | "light" | "lighter" | "text";

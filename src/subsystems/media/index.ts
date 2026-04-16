@@ -3,8 +3,10 @@ import {
   mediaQueryString,
   resolveMediaConfig,
   MediaQueryOptions,
-} from "../common/media";
-import type { Breakpoints } from "../common";
+  MediaConfig,
+  MediaUnit,
+} from "../../core/media";
+import type { Breakpoints } from "../../core/common";
 import {
   wrapMediaDescriptor,
   wrapMediaGroup,
@@ -12,11 +14,7 @@ import {
   WrappedMediaGroup,
 } from "./templates";
 
-export type MediaUnit = "px" | "em" | "rem";
-export type MediaConfig = {
-  unit?: MediaUnit;
-  baseFontSize?: number;
-};
+export type { MediaConfig, MediaUnit, MediaQueryOptions };
 
 export type ThemeWithMedia<T extends string> = {
   readonly media: MediaHelpers<T>;

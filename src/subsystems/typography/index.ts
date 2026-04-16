@@ -1,5 +1,5 @@
 import { css } from "styled-components";
-import type { SubsystemThemeHelper } from "../theme/helpers";
+import type { SubsystemThemeHelper } from "../../core/theme/helpers";
 
 export type TypographyScaleKey =
   | "xs"

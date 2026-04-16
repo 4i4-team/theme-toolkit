@@ -1,4 +1,9 @@
-import type { MediaConfig } from "../../media";
+export type MediaUnit = "px" | "em" | "rem";
+
+export type MediaConfig = {
+  unit?: MediaUnit;
+  baseFontSize?: number;
+};
 
 export type MediaQueryOptions = {
   min?: number;

@@ -1,4 +1,4 @@
-import type { MediaHelpers } from "../../media";
+import type { MediaHelpers } from "../../../subsystems/media";
 import type { RecipeResponsiveOverride } from "../types";
 
 export type RecipeStyleBlock = Record<string, string | number>;

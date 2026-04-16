@@ -6,7 +6,7 @@ import type {
   NormalizedPaletteValue,
   PalettePropertyValue,
 } from "./types";
-import type { SubsystemThemeHelper } from "../theme/helpers";
+import type { SubsystemThemeHelper } from "../../core/theme/helpers";
 import type { MediaHelpers } from "../media";
 import { finalizePaletteNormalization } from "./normalize";
 import { tokenizePaletteProperty, mapPaletteCssVariables } from "./tokens";

@@ -1,8 +1,8 @@
 import { css } from "styled-components";
 import { mediaQuery } from "../media";
 import type { MediaConfig } from "../media";
-import type { Breakpoints, ResponsiveQuery } from "../common";
-import { sortBreakpointKeys } from "../common/media";
+import type { Breakpoints, ResponsiveQuery } from "../../core/common";
+import { sortBreakpointKeys } from "../../core/media";
 
 type Scalar = number | string;
 

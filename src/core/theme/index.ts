@@ -1,9 +1,9 @@
-import { media } from "../media";
+import { media } from "../../subsystems/media";
 import type {
   MediaConfig,
   ThemeWithMedia,
   MediaGroup,
-} from "../media";
+} from "../../subsystems/media";
 import type { Breakpoints, NormalizedPropertyValue } from "../common";
 import {
   normalizePropertyValue,
@@ -13,7 +13,7 @@ import {
   normalizeCssVariablePrefix,
 } from "../common";
 import { css } from "styled-components";
-import { createPaletteThemeHelper, lighten, darken } from "../colors";
+import { createPaletteThemeHelper, lighten, darken } from "../../subsystems/colors";
 import type {
   PaletteBuilderOptions,
   PaletteSource,
@@ -25,17 +25,17 @@ import type {
   NormalizedPaletteValue,
   PalettePropertyExtras,
   PalettePropertyValue,
-} from "../colors";
-import { createTypographyThemeHelper } from "../typography";
-import type { TypographySource, TypographyTokens } from "../typography";
-import { buildGridTokens } from "../layout";
+} from "../../subsystems/colors";
+import { createTypographyThemeHelper } from "../../subsystems/typography";
+import type { TypographySource, TypographyTokens } from "../../subsystems/typography";
+import { buildGridTokens } from "../../subsystems/layout";
 import type {
   LayoutConfig,
   LayoutTokens,
   LayoutHelpers,
   LayoutBuilderOptions,
-} from "../layout";
-import type { MediaHelpers } from "../media";
+} from "../../subsystems/layout";
+import type { MediaHelpers } from "../../subsystems/media";
 
 type ThemeWithBreakpoints<T extends string, TPaletteKey extends string> = {
   breakpoints: Breakpoints<T>;

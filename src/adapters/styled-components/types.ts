@@ -1,10 +1,10 @@
 import type {
   LayoutHelpers,
   LayoutTokens,
-} from "../layout";
-import type { TypographyTokens } from "../typography";
-import type { MediaHelpers } from "../media";
-import type { PaletteTokens, PaletteRecipeStyleMap } from "../colors";
+} from "../../subsystems/layout";
+import type { TypographyTokens } from "../../subsystems/typography";
+import type { MediaHelpers } from "../../subsystems/media";
+import type { PaletteTokens, PaletteRecipeStyleMap } from "../../subsystems/colors";
 
 export interface ThemeAugmentation {
   media: MediaHelpers<string>;

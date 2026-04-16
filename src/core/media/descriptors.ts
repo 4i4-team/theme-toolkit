@@ -1,4 +1,4 @@
-import type { Breakpoints } from "../types";
+import type { Breakpoints } from "../common/types";
 import type { MediaQueryOptions } from "./queries";
 
 export type MediaVariant = "min" | "max" | "exact";

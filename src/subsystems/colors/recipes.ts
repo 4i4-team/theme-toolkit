@@ -3,8 +3,8 @@ import {
   generateRecipeCss,
   normalizeRecipeGroup,
   sanitizeIdentifierSegment,
-} from "../common";
-import type { NormalizedRecipeGroup, RecipeResponsiveOverride, RecipeStyleBlock } from "../common";
+} from "../../core/common";
+import type { NormalizedRecipeGroup, RecipeResponsiveOverride, RecipeStyleBlock } from "../../core/common";
 import type { MediaHelpers } from "../media";
 import type {
   PaletteBuilderOptions,

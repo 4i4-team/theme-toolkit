@@ -1,4 +1,4 @@
-import type { ResponsiveQuery } from "../common";
+import type { ResponsiveQuery } from "../../core/common";
 
 type Scalar = number | string;
 

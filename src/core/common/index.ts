@@ -5,7 +5,6 @@ export * from "./css";
 export * from "./cssVariables";
 export * from "./cssRenderer";
 export * from "./cache";
-export * from "./media";
 export * from "./tokens";
 export * from "./recipes";
 export * from "./recipes/css";

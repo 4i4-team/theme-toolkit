@@ -93,7 +93,7 @@ Merge rules the core applies in stage 6:
 
 Execute section 3 against the existing code.
 
-- [ ] Extend the subsystem helper contract in `src/core/theme/helpers.ts` with the new hooks (`normalizeRecipe`, `interpretRecipe`, `mapRecipeCss`, `buildSlice`, `buildGlobals`, `dependsOn`, `transformResponsiveCss?`).
+- [x] Extend the subsystem helper contract in `src/core/theme/helpers.ts` with the new hooks (`normalizeRecipe`, `interpretRecipe`, `mapRecipeCss`, `buildSlice`, `buildGlobals`, `dependsOn`, `transformResponsiveCss?`). Landed in `3cc90e1` as additive optional fields alongside the legacy `buildHelpers` / `buildRecipes`; the createTheme refactor will consume the new hooks and retire the legacy pair.
 - [x] Implement the shared core stage `expandResponsiveCssVariables` in `src/core/common/` (merge rules + per-breakpoint `{ media, variables }` output). Landed in `5666db1`; not yet wired into `createTheme`.
 - [x] Implement cycle-safe recipe interpretation loop in the core (lazy memoized `resolveRecipeVariant`). Landed in `303843f` as `createRecipeVariantResolver`; not yet wired into `createTheme`.
 - [ ] Refactor `createTheme` to run a generic per-subsystem reducer loop driving the property and recipe pipelines via the helper contract. No more hard-wired palette/typography/layout code paths.

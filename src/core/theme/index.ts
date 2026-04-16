@@ -11,6 +11,7 @@ import {
   generateCssVariables,
   renderToCssString,
   normalizeCssVariablePrefix,
+  expandResponsiveCssVariables,
 } from "../common";
 import {
   buildMediaDescriptor,
@@ -19,7 +20,12 @@ import {
 } from "../media";
 import type { MediaDescriptor } from "../media";
 import { css } from "styled-components";
-import { createPaletteThemeHelper, lighten, darken } from "../../subsystems/colors";
+import {
+  createPaletteCssVariableResolver,
+  createPaletteThemeHelper,
+  darken,
+  lighten,
+} from "../../subsystems/colors";
 import type {
   PaletteBuilderOptions,
   PaletteSource,
@@ -300,7 +306,7 @@ export function createTheme<
         : baseToken;
     });
 
-  const buildPaletteVariableNodes = (
+  const buildPaletteBaseVariableNode = (
     tokens: Record<TPaletteKey, PaletteTokens>,
   ): CssVariablesNode[] => {
     if (!Object.keys(tokens).length) {
@@ -320,6 +326,30 @@ export function createTheme<
       },
     ];
   };
+
+  const buildPaletteResponsiveNodes = (
+    normalized: NormalizedPaletteCollection<TPaletteKey>,
+    mediaDescriptor: MediaDescriptor<T>,
+  ): CssVariablesNode[] => {
+    if (!Object.keys(normalized).length) {
+      return [];
+    }
+    const prefix = normalizeCssVariablePrefix(options?.palette?.prefix);
+    const resolveCssVariable = createPaletteCssVariableResolver(prefix);
+    return expandResponsiveCssVariables(normalized, {
+      resolveCssVariable,
+      media: mediaDescriptor,
+    });
+  };
+
+  const buildPaletteVariableNodes = (
+    tokens: Record<TPaletteKey, PaletteTokens>,
+    normalized: NormalizedPaletteCollection<TPaletteKey>,
+    mediaDescriptor: MediaDescriptor<T>,
+  ): CssVariablesNode[] => [
+    ...buildPaletteBaseVariableNode(tokens),
+    ...buildPaletteResponsiveNodes(normalized, mediaDescriptor),
+  ];
 
   const buildMediaDescriptorInstance = (
     breakpoints: Breakpoints<T>,
@@ -342,7 +372,12 @@ export function createTheme<
     cachedPaletteBreakpoints,
   );
   let cachedPaletteTokens = buildPaletteTokensFromNormalized(cachedNormalizedPalette);
-  let cachedPaletteVariables = buildPaletteVariableNodes(cachedPaletteTokens);
+  let cachedPaletteVariables = buildPaletteVariableNodes(
+    cachedPaletteTokens,
+    cachedNormalizedPalette,
+    cachedMediaDescriptor,
+  );
+  let cachedPaletteVariablesMedia = cachedMediaDescriptor;
   let cachedPaletteRecipesSource = clone.paletteRecipes;
   let cachedPaletteRecipeTokens = cachedPaletteTokens;
   let cachedPaletteRecipeBreakpoints = cachedPaletteBreakpoints;
@@ -389,8 +424,13 @@ export function createTheme<
         currentBreakpoints,
       );
       cachedPaletteTokens = buildPaletteTokensFromNormalized(cachedNormalizedPalette);
-      cachedPaletteVariables = buildPaletteVariableNodes(cachedPaletteTokens);
       cachedPaletteRecipeTokens = cachedPaletteTokens;
+      cachedPaletteVariables = buildPaletteVariableNodes(
+        cachedPaletteTokens,
+        cachedNormalizedPalette,
+        cachedMediaDescriptor,
+      );
+      cachedPaletteVariablesMedia = cachedMediaDescriptor;
     }
   };
 
@@ -401,6 +441,15 @@ export function createTheme<
 
   const getPaletteVariables = () => {
     syncPalette();
+    refreshMediaIfStale();
+    if (cachedPaletteVariablesMedia !== cachedMediaDescriptor) {
+      cachedPaletteVariables = buildPaletteVariableNodes(
+        cachedPaletteTokens,
+        cachedNormalizedPalette,
+        cachedMediaDescriptor,
+      );
+      cachedPaletteVariablesMedia = cachedMediaDescriptor;
+    }
     return cachedPaletteVariables;
   };
   const typographyHelper = createTypographyThemeHelper();

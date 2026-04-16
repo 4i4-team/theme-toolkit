@@ -4,11 +4,11 @@ import external from 'rollup-plugin-peer-deps-external';
 
 const input = {
   index: 'src/index.ts',
-  media: 'src/media/index.ts',
-  layout: 'src/layout/index.ts',
-  colors: 'src/colors/index.ts',
-  typography: 'src/typography/index.ts',
-  theme: 'src/theme/index.ts'
+  media: 'src/subsystems/media/index.ts',
+  layout: 'src/subsystems/layout/index.ts',
+  colors: 'src/subsystems/colors/index.ts',
+  typography: 'src/subsystems/typography/index.ts',
+  theme: 'src/core/theme/index.ts'
 };
 
 export default {

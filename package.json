@@ -30,27 +30,27 @@
     "./media": {
       "require": "./dist/media.cjs.js",
       "import": "./dist/media.esm.js",
-      "types": "./dist/media/index.d.ts"
+      "types": "./dist/subsystems/media/index.d.ts"
     },
     "./layout": {
       "require": "./dist/layout.cjs.js",
       "import": "./dist/layout.esm.js",
-      "types": "./dist/layout/index.d.ts"
+      "types": "./dist/subsystems/layout/index.d.ts"
     },
     "./colors": {
       "require": "./dist/colors.cjs.js",
       "import": "./dist/colors.esm.js",
-      "types": "./dist/colors/index.d.ts"
+      "types": "./dist/subsystems/colors/index.d.ts"
     },
     "./typography": {
       "require": "./dist/typography.cjs.js",
       "import": "./dist/typography.esm.js",
-      "types": "./dist/typography/index.d.ts"
+      "types": "./dist/subsystems/typography/index.d.ts"
     },
     "./theme": {
       "require": "./dist/theme.cjs.js",
       "import": "./dist/theme.esm.js",
-      "types": "./dist/theme/index.d.ts"
+      "types": "./dist/core/theme/index.d.ts"
     }
   },
   "scripts": {

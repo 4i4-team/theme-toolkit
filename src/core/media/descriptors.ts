@@ -1,6 +1,8 @@
 import type { Breakpoints } from "../common/types";
 import type { MediaQueryOptions } from "./queries";
 
+export const BREAKPOINT_EPSILON = 0.02;
+
 export type MediaVariant = "min" | "max" | "exact";
 
 export type MediaGroupDescriptor = Record<MediaVariant, string>;
@@ -22,6 +24,9 @@ export const sortBreakpointKeys = <T extends string>(
   (a, b) => breakpoints[a] - breakpoints[b],
 );
 
+const maxValueForNext = (next?: number): number | undefined =>
+  next === undefined ? undefined : next - BREAKPOINT_EPSILON;
+
 export const buildMediaDescriptor = <TBreakpoint extends string>(
   breakpoints: Breakpoints<TBreakpoint>,
   resolveQuery: (
@@ -29,13 +34,16 @@ export const buildMediaDescriptor = <TBreakpoint extends string>(
   ) => string,
 ): MediaDescriptor<TBreakpoint> => {
   const keys = sortBreakpointKeys(breakpoints);
-  const groups = keys.reduce<Record<TBreakpoint, MediaGroupDescriptor>>(
-    (acc, key, index) => {
-      const min = breakpoints[key];
-      const nextKey = keys[index + 1];
-      const max = nextKey ? breakpoints[nextKey] : undefined;
+  const nextOf = (key: TBreakpoint): TBreakpoint | undefined =>
+    keys[keys.indexOf(key) + 1];
 
-      acc[key] = buildGroupDescriptor({ min, max }, resolveQuery);
+  const groups = keys.reduce<Record<TBreakpoint, MediaGroupDescriptor>>(
+    (acc, key) => {
+      const own = breakpoints[key];
+      const nextKey = nextOf(key);
+      const next = nextKey !== undefined ? breakpoints[nextKey] : undefined;
+
+      acc[key] = buildGroupDescriptor({ own, next }, resolveQuery);
       return acc;
     },
     {} as Record<TBreakpoint, MediaGroupDescriptor>,
@@ -55,15 +63,15 @@ export const buildMediaDescriptor = <TBreakpoint extends string>(
     options?: MediaQueryOptions,
   ): string => {
     const min = breakpoints[from];
-    const max = breakpoints[to];
+    const toValue = breakpoints[to];
 
-    if (min === undefined || max === undefined) {
+    if (min === undefined || toValue === undefined) {
       throw new Error(
         `Cannot build media query between "${from}" and "${to}" breakpoints.`,
       );
     }
 
-    return resolveQuery({ min, max, ...options });
+    return resolveQuery({ min, max: toValue - BREAKPOINT_EPSILON, ...options });
   };
 
   return {
@@ -80,17 +88,22 @@ export const buildMediaDescriptor = <TBreakpoint extends string>(
       if (!options) {
         return group.max;
       }
-      return resolveQuery({ max: breakpoints[key], ...options });
+      const nextKey = nextOf(key);
+      const next = nextKey !== undefined ? breakpoints[nextKey] : undefined;
+      return resolveQuery({ max: maxValueForNext(next), ...options });
     },
     between,
   };
 };
 
 const buildGroupDescriptor = (
-  { min, max }: { min?: number; max?: number },
+  { own, next }: { own: number; next?: number },
   resolveQuery: (options: MediaQueryOptions) => string,
-): MediaGroupDescriptor => ({
-  min: resolveQuery({ min }),
-  max: resolveQuery({ max }),
-  exact: resolveQuery({ min, max }),
-});
+): MediaGroupDescriptor => {
+  const maxValue = maxValueForNext(next);
+  return {
+    min: resolveQuery({ min: own }),
+    max: maxValue === undefined ? "" : resolveQuery({ max: maxValue }),
+    exact: resolveQuery({ min: own, max: maxValue }),
+  };
+};

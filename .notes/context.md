@@ -94,8 +94,11 @@ Merge rules the core applies in stage 6:
 Execute section 3 against the existing code.
 
 - [x] Extend the subsystem helper contract in `src/core/theme/helpers.ts` with the new hooks (`normalizeRecipe`, `interpretRecipe`, `mapRecipeCss`, `buildSlice`, `buildGlobals`, `dependsOn`, `transformResponsiveCss?`). Landed in `3cc90e1` as additive optional fields alongside the legacy `buildHelpers` / `buildRecipes`; the createTheme refactor will consume the new hooks and retire the legacy pair.
-- [x] Implement the shared core stage `expandResponsiveCssVariables` in `src/core/common/` (merge rules + per-breakpoint `{ media, variables }` output). Landed in `5666db1`; not yet wired into `createTheme`.
+- [x] Implement the shared core stage `expandResponsiveCssVariables` in `src/core/common/` (merge rules + per-breakpoint output). Landed in `5666db1`; IR migration in `5800b96` (now returns `CssVariablesNode[]`).
 - [x] Implement cycle-safe recipe interpretation loop in the core (lazy memoized `resolveRecipeVariant`). Landed in `303843f` as `createRecipeVariantResolver`; not yet wired into `createTheme`.
+- [x] CSS IR + `renderToCssString` landed in `79b2902`. `generateRecipeCss` migrated to IR + colors subsystem + `createTheme` reshape landed in `69a938f`. Result: `theme.colors.variables` / `theme.colors.recipes.nodes` (IR), top-level `theme.css` / `theme.nodes` aggregation, single `:root` block across subsystems.
+- [ ] Wire `expandResponsiveCssVariables` into colors' variables output so responsive palette entries produce `@media { :root { ... } }` overrides in `theme.css`.
+- [ ] Fix colors' recipe interpreter to emit `var(--…)` instead of inlined values for property references (known gap from architecture pass).
 - [ ] Refactor `createTheme` to run a generic per-subsystem reducer loop driving the property and recipe pipelines via the helper contract. No more hard-wired palette/typography/layout code paths.
 - [ ] Port the colors subsystem to the refined contract (update `createPaletteThemeHelper` — most of it already matches). Validate against the colors example app.
 - [ ] Port layout, typography, media, effects onto the standard file contract and helper pattern.

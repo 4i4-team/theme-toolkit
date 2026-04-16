@@ -1,4 +1,5 @@
 import type {
+  CssVariablesNode,
   InterpretedRecipeVariant,
   NormalizedPropertyValue,
   NormalizedRecipeGroup,
@@ -6,7 +7,6 @@ import type {
   RecipeResponsiveOverride,
   RecipeStyleBlock,
   ResolveCssVariableName,
-  ResponsiveCssVariableSection,
 } from "../common";
 
 // -----------------------------------------------------------------------------
@@ -31,12 +31,12 @@ export type MapCssVariablesHook<TTokens> = (
 ) => Record<string, string>;
 
 export type TransformResponsiveCssHook<TBreakpoint extends string> = (
-  sections: ResponsiveCssVariableSection[],
+  nodes: CssVariablesNode[],
   context: {
     tokens: unknown;
     breakpoints: Record<TBreakpoint, number>;
   },
-) => ResponsiveCssVariableSection[];
+) => CssVariablesNode[];
 
 // -----------------------------------------------------------------------------
 // Recipe pipeline hooks

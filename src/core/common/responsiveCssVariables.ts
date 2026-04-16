@@ -1,4 +1,5 @@
 import type { MediaDescriptor } from "../media";
+import type { CssVariablesNode } from "./cssNodes";
 import type { CssVariableMap } from "./cssVariables";
 import { DEFAULT_RESPONSIVE_QUERY } from "./responsive";
 import type { NormalizedPropertyValue } from "./types";
@@ -9,18 +10,15 @@ export type ResolveCssVariableName = (
   field?: string,
 ) => string;
 
-export type ResponsiveCssVariableSection = {
-  media: string;
-  variables: CssVariableMap;
-};
-
 export type ExpandResponsiveCssVariablesOptions<TBreakpoint extends string> = {
   resolveCssVariable: ResolveCssVariableName;
   media: MediaDescriptor<TBreakpoint>;
   formatValue?: (value: unknown) => string;
+  selector?: string;
 };
 
 const RESERVED_KEYS = new Set(["breakpoint", "query", "variant", "target"]);
+const DEFAULT_SELECTOR = ":root";
 
 const defaultFormatValue = (value: unknown): string =>
   value === null || value === undefined ? "" : String(value);
@@ -32,9 +30,14 @@ export const expandResponsiveCssVariables = <
 >(
   properties: Record<string, NormalizedPropertyValue<TValue, TExtra, TBreakpoint>>,
   options: ExpandResponsiveCssVariablesOptions<TBreakpoint>,
-): ResponsiveCssVariableSection[] => {
-  const { resolveCssVariable, media, formatValue = defaultFormatValue } = options;
-  const sectionsByMedia = new Map<string, CssVariableMap>();
+): CssVariablesNode[] => {
+  const {
+    resolveCssVariable,
+    media,
+    formatValue = defaultFormatValue,
+    selector = DEFAULT_SELECTOR,
+  } = options;
+  const variablesByMedia = new Map<string, CssVariableMap>();
 
   for (const [propertyName, property] of Object.entries(properties)) {
     for (const entry of property.responsive) {
@@ -51,16 +54,21 @@ export const expandResponsiveCssVariables = <
       );
       if (!Object.keys(updates).length) continue;
 
-      const existing = sectionsByMedia.get(mediaQuery);
+      const existing = variablesByMedia.get(mediaQuery);
       if (existing) {
         Object.assign(existing, updates);
       } else {
-        sectionsByMedia.set(mediaQuery, { ...updates });
+        variablesByMedia.set(mediaQuery, { ...updates });
       }
     }
   }
 
-  return Array.from(sectionsByMedia, ([media, variables]) => ({ media, variables }));
+  return Array.from(variablesByMedia, ([media, variables]): CssVariablesNode => ({
+    kind: "variables",
+    selector,
+    media,
+    variables,
+  }));
 };
 
 const computeEntryUpdates = (

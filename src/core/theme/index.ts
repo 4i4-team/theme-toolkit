@@ -9,7 +9,7 @@ import {
   normalizePropertyValue,
   generateTokens,
   generateCssVariables,
-  renderAllCssVariables,
+  renderToCssString,
   normalizeCssVariablePrefix,
 } from "../common";
 import { css } from "styled-components";
@@ -300,8 +300,9 @@ export function createTheme<
       ? paletteHelper.mapCssVariables(tokens, prefix)
       : generateCssVariables(tokens, { prefix });
 
-    return renderAllCssVariables([
+    return renderToCssString([
       {
+        kind: "variables",
         selector: ":root",
         variables,
       },

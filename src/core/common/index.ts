@@ -10,4 +10,5 @@ export * from "./tokens";
 export * from "./recipes";
 export * from "./recipes/css";
 export * from "./recipes/classes";
+export * from "./recipeResolver";
 export * from "./getters";

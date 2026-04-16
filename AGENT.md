@@ -3,10 +3,11 @@
 This toolkit exposes theme subsystems (layout, typography, media, colors, effects, etc.) that all follow the same normalization/token/CSS pipeline. Use this guide both when **consuming** the package and when **extending** it with new subsystems.
 
 ## Key documents
-- `.codex/theme-architecture-context-input.md` – canonical requirements for properties, variants, responsive rules, recipes, breakpoints, and `createTheme` behavior.
-- `.codex/theme-architecture-for-codex-v3.md` – latest architecture spec (keep in sync with code).
-- `.codex/theme-architecture-example-raw-theme.js` – sample raw theme exercising every feature.
-- `.codex/plan.md` – ordered rollout plan for shared utilities.
+- `.notes/reference/architecture.md` – latest architecture spec (keep in sync with code).
+- `.notes/reference/raw-theme-example.js` – sample raw theme exercising every feature; treat as the source of truth when prose docs disagree.
+- `.notes/reference/subsystem-pipeline.md` – worked example of one subsystem plugged into `createTheme`.
+- `.notes/reference/architecture-notes.md` – canonical requirements and design rationale for properties, variants, responsive rules, recipes, breakpoints, and `createTheme` behavior.
+- `.notes/context.md` – current backlog and rollout status for shared utilities and subsystem retrofits.
 - `docs/common/README.md` – detailed guide to every common helper.
 
 ## Using the toolkit (package consumers)

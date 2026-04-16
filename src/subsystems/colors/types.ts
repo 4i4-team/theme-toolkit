@@ -85,5 +85,6 @@ export type PaletteRecipeRegistry<TBreakpoint extends string> = {
 export type PaletteRecipeBuildOptions<TBreakpoint extends string> = {
   breakpoints: Breakpoints<TBreakpoint>;
   media: MediaDescriptor<TBreakpoint>;
+  prefix?: string;
   classPrefix?: string;
 };

@@ -33,10 +33,13 @@ export const createPaletteThemeHelper = (): SubsystemThemeHelper =>
         media: MediaDescriptor<string>;
         options?: PaletteBuilderOptions;
       },
-    ) =>
-      buildPaletteRecipes(recipes, tokens, {
+    ) => {
+      const paletteOptions = context.options as PaletteBuilderOptions | undefined;
+      return buildPaletteRecipes(recipes, tokens, {
         breakpoints: context.breakpoints as Record<string, number>,
         media: context.media as MediaDescriptor<string>,
-        classPrefix: (context.options as PaletteBuilderOptions | undefined)?.classPrefix,
-      }),
+        prefix: paletteOptions?.prefix,
+        classPrefix: paletteOptions?.classPrefix,
+      });
+    },
   }) as unknown as SubsystemThemeHelper;

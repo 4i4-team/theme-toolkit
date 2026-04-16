@@ -4,7 +4,14 @@ import {
   normalizeRecipeGroup,
   sanitizeIdentifierSegment,
 } from "../../core/common";
-import type { CssRuleNode, NormalizedRecipeGroup, RecipeResponsiveOverride, RecipeStyleBlock } from "../../core/common";
+import type {
+  CssRuleNode,
+  NormalizedRecipeGroup,
+  RecipeResponsiveOverride,
+  RecipeStyleBlock,
+  ResolveCssVariableName,
+} from "../../core/common";
+import { createPaletteCssVariableResolver } from "./tokens";
 import type {
   PaletteBuilderOptions,
   PaletteCollection,
@@ -34,6 +41,7 @@ export function buildPaletteRecipes<TColor extends string, TBreakpoint extends s
   }
 
   const allowedBreakpoints = Object.keys(options.breakpoints) as TBreakpoint[];
+  const resolveCssVariable = createPaletteCssVariableResolver(options.prefix ?? "");
   const nodes: CssRuleNode[] = [];
   const classes: Record<string, Record<string, string>> = {};
   const styles: Record<string, PaletteRecipeStyleMap<TBreakpoint>> = {};
@@ -46,6 +54,7 @@ export function buildPaletteRecipes<TColor extends string, TBreakpoint extends s
 
     const interpreted = interpretPaletteRecipeGroup(normalized, tokens, {
       groupPath: `palette.recipes.${groupName}`,
+      resolveCssVariable,
     });
 
     styles[groupName] = interpreted;
@@ -88,7 +97,7 @@ const interpretPaletteRecipeGroup = <
 >(
   group: NormalizedRecipeGroup<PaletteRecipeProps, TBreakpoint>,
   tokens: Record<TColor, PaletteTokens>,
-  options: { groupPath: string },
+  options: { groupPath: string; resolveCssVariable: ResolveCssVariableName },
 ): PaletteRecipeStyleMap<TBreakpoint> => {
   const interpreted = {} as PaletteRecipeStyleMap<TBreakpoint>;
   const baseCache = new Map<string, RecipeStyleBlock>();
@@ -111,7 +120,12 @@ const interpretPaletteRecipeGroup = <
     }
 
     resolving.add(variantName);
-    const resolved = interpretRecipeProps(variant.base, tokens, `${options.groupPath}.${variantName}`);
+    const resolved = interpretRecipeProps(
+      variant.base,
+      tokens,
+      options.resolveCssVariable,
+      `${options.groupPath}.${variantName}`,
+    );
     resolving.delete(variantName);
     baseCache.set(variantName, resolved);
     return resolved;
@@ -130,6 +144,7 @@ const interpretPaletteRecipeGroup = <
       const overrides = interpretRecipeProps(
         entry as unknown as PaletteRecipeProps,
         tokens,
+        options.resolveCssVariable,
         `${options.groupPath}.${variantName}.responsive`,
       );
 
@@ -152,6 +167,7 @@ const interpretPaletteRecipeGroup = <
 const interpretRecipeProps = <TColor extends string>(
   props: PaletteRecipeProps | undefined,
   tokens: Record<TColor, PaletteTokens>,
+  resolveCssVariable: ResolveCssVariableName,
   path: string,
 ): RecipeStyleBlock => {
   const styles: RecipeStyleBlock = {};
@@ -164,7 +180,7 @@ const interpretRecipeProps = <TColor extends string>(
       return;
     }
 
-    const resolved = resolvePaletteReference(value, tokens, path, property);
+    const resolved = resolvePaletteReference(value, tokens, resolveCssVariable, path, property);
     if (resolved === undefined || resolved === "") {
       return;
     }
@@ -178,6 +194,7 @@ const interpretRecipeProps = <TColor extends string>(
 const resolvePaletteReference = <TColor extends string>(
   value: string | number,
   tokens: Record<TColor, PaletteTokens>,
+  resolveCssVariable: ResolveCssVariableName,
   path: string,
   property: string,
 ): string | number => {
@@ -198,24 +215,23 @@ const resolvePaletteReference = <TColor extends string>(
     return trimmed;
   }
 
-  const variantKey = segments.length > 1 ? segments.slice(1).join(".") : undefined;
+  const subKey = segments.length > 1 ? segments.slice(1).join(".") : undefined;
 
-  if (!variantKey || variantKey === "main") {
-    return palette.variants.main;
+  if (!subKey) {
+    return `var(${resolveCssVariable(paletteName as string)})`;
   }
 
-  if (variantKey === "text") {
-    return palette.text;
+  if (subKey === "text") {
+    return `var(${resolveCssVariable(paletteName as string, undefined, "text")})`;
   }
 
-  const resolved = palette.variants[variantKey];
-  if (!resolved) {
+  if (!palette.variants[subKey]) {
     throw new Error(
-      `Unknown palette variant reference "${String(paletteName)}.${variantKey}" in ${path}.${property}.`,
+      `Unknown palette variant reference "${String(paletteName)}.${subKey}" in ${path}.${property}.`,
     );
   }
 
-  return resolved;
+  return `var(${resolveCssVariable(paletteName as string, subKey)})`;
 };
 
 const formatPropertyName = (property: string): string => {

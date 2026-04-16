@@ -526,9 +526,9 @@ export function createTheme<
       }
 
       const responsiveCss = responsive.map(rule => {
-        const mediaGroup = clone.media.groups[
-          rule.breakpoint as keyof typeof clone.media.groups
-        ] as MediaGroup | undefined;
+        const mediaGroup = (clone.media as unknown as Record<string, MediaGroup | undefined>)[
+          rule.breakpoint
+        ];
 
         if (!mediaGroup) {
           return css``;

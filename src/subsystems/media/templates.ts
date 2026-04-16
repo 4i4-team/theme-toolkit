@@ -11,13 +11,7 @@ type MediaTemplateWithQuery = MediaTemplate & { readonly query: string };
 
 export type WrappedMediaGroup = Record<MediaVariant, MediaTemplateWithQuery>;
 
-export type WrappedMediaGroups<TBreakpoint extends string> = Record<
-  TBreakpoint,
-  WrappedMediaGroup
->;
-
 export type WrappedMediaDescriptor<TBreakpoint extends string> = {
-  groups: WrappedMediaGroups<TBreakpoint>;
   min: (key: TBreakpoint, options?: MediaOrientationOptions) => MediaTemplateWithQuery;
   max: (key: TBreakpoint, options?: MediaOrientationOptions) => MediaTemplateWithQuery;
   between: (
@@ -25,36 +19,44 @@ export type WrappedMediaDescriptor<TBreakpoint extends string> = {
     to: TBreakpoint,
     options?: MediaOrientationOptions,
   ) => MediaTemplateWithQuery;
-};
+} & Record<TBreakpoint, WrappedMediaGroup>;
 
 type MediaOrientationOptions = Pick<MediaQueryOptions, "orientation">;
+
+const RESERVED_DESCRIPTOR_KEYS = new Set(["min", "max", "between"]);
 
 export const wrapMediaDescriptor = <TBreakpoint extends string>(
   descriptor: MediaDescriptor<TBreakpoint>,
 ): WrappedMediaDescriptor<TBreakpoint> => {
-  const groups = {} as WrappedMediaGroups<TBreakpoint>;
-  for (const key of Object.keys(descriptor.groups) as TBreakpoint[]) {
-    groups[key] = wrapMediaGroup(descriptor.groups[key]);
+  const wrapped = {
+    min: (key: TBreakpoint, options?: MediaOrientationOptions) =>
+      wrapQuery(descriptor.min(key, options)),
+    max: (key: TBreakpoint, options?: MediaOrientationOptions) =>
+      wrapQuery(descriptor.max(key, options)),
+    between: (
+      from: TBreakpoint,
+      to: TBreakpoint,
+      options?: MediaOrientationOptions,
+    ) => wrapQuery(descriptor.between(from, to, options)),
+  } as WrappedMediaDescriptor<TBreakpoint>;
+
+  for (const key of Object.keys(descriptor) as TBreakpoint[]) {
+    if (RESERVED_DESCRIPTOR_KEYS.has(key)) continue;
+    (wrapped as Record<string, unknown>)[key] = wrapMediaGroup(
+      descriptor[key] as MediaGroupDescriptor,
+    );
   }
 
-  return {
-    groups,
-    min: (key, options) => wrapQuery(descriptor.min(key, options)),
-    max: (key, options) => wrapQuery(descriptor.max(key, options)),
-    between: (from, to, options) => wrapQuery(descriptor.between(from, to, options)),
-  };
+  return wrapped;
 };
 
-const wrapGroup = (group: MediaGroupDescriptor): WrappedMediaGroup => {
+export const wrapMediaGroup = (group: MediaGroupDescriptor): WrappedMediaGroup => {
   const wrapped = {} as WrappedMediaGroup;
   (Object.keys(group) as MediaVariant[]).forEach(variant => {
     wrapped[variant] = wrapQuery(group[variant]);
   });
   return wrapped;
 };
-
-export const wrapMediaGroup = (group: MediaGroupDescriptor): WrappedMediaGroup =>
-  wrapGroup(group);
 
 const wrapQuery = (query: string): MediaTemplateWithQuery => {
   const template = buildTemplate(query);

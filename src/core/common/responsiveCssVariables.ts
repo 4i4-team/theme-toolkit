@@ -38,7 +38,7 @@ export const expandResponsiveCssVariables = <
 
   for (const [propertyName, property] of Object.entries(properties)) {
     for (const entry of property.responsive) {
-      const group = media.groups[entry.breakpoint];
+      const group = media[entry.breakpoint];
       if (!group) continue;
       const mediaQuery = group[entry.query ?? DEFAULT_RESPONSIVE_QUERY];
       if (!mediaQuery) continue;

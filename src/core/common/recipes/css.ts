@@ -49,7 +49,7 @@ export const generateRecipeCss = <TBreakpoint extends string>(
     }
 
     variant.responsive.forEach(entry => {
-      const mediaGroup = options.media.groups[entry.breakpoint];
+      const mediaGroup = options.media[entry.breakpoint];
       if (!mediaGroup) {
         return;
       }

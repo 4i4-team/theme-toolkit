@@ -3,12 +3,13 @@ import type { MediaQueryOptions } from "./queries";
 
 export const BREAKPOINT_EPSILON = 0.02;
 
+const RESERVED_BREAKPOINT_KEYS = ["min", "max", "between"] as const;
+
 export type MediaVariant = "min" | "max" | "exact";
 
 export type MediaGroupDescriptor = Record<MediaVariant, string>;
 
 export type MediaDescriptor<TBreakpoint extends string> = {
-  groups: Record<TBreakpoint, MediaGroupDescriptor>;
   min: (key: TBreakpoint, options?: MediaQueryOptions) => string;
   max: (key: TBreakpoint, options?: MediaQueryOptions) => string;
   between: (
@@ -16,7 +17,7 @@ export type MediaDescriptor<TBreakpoint extends string> = {
     to: TBreakpoint,
     options?: MediaQueryOptions,
   ) => string;
-};
+} & Record<TBreakpoint, MediaGroupDescriptor>;
 
 export const sortBreakpointKeys = <T extends string>(
   breakpoints: Breakpoints<T>,
@@ -27,6 +28,19 @@ export const sortBreakpointKeys = <T extends string>(
 const maxValueForNext = (next?: number): number | undefined =>
   next === undefined ? undefined : next - BREAKPOINT_EPSILON;
 
+const assertNoReservedBreakpointNames = (keys: readonly string[]): void => {
+  const conflicts = keys.filter(key =>
+    (RESERVED_BREAKPOINT_KEYS as readonly string[]).includes(key),
+  );
+  if (conflicts.length) {
+    throw new Error(
+      `Breakpoint names conflict with reserved keys: ${conflicts
+        .map(k => `"${k}"`)
+        .join(", ")}. Reserved: ${RESERVED_BREAKPOINT_KEYS.map(k => `"${k}"`).join(", ")}.`,
+    );
+  }
+};
+
 export const buildMediaDescriptor = <TBreakpoint extends string>(
   breakpoints: Breakpoints<TBreakpoint>,
   resolveQuery: (
@@ -34,6 +48,8 @@ export const buildMediaDescriptor = <TBreakpoint extends string>(
   ) => string,
 ): MediaDescriptor<TBreakpoint> => {
   const keys = sortBreakpointKeys(breakpoints);
+  assertNoReservedBreakpointNames(keys);
+
   const nextOf = (key: TBreakpoint): TBreakpoint | undefined =>
     keys[keys.indexOf(key) + 1];
 
@@ -74,16 +90,16 @@ export const buildMediaDescriptor = <TBreakpoint extends string>(
     return resolveQuery({ min, max: toValue - BREAKPOINT_EPSILON, ...options });
   };
 
-  return {
-    groups,
-    min: (key, options) => {
+  const descriptor = {
+    ...groups,
+    min: (key: TBreakpoint, options?: MediaQueryOptions) => {
       const group = resolveKey(key);
       if (!options) {
         return group.min;
       }
       return resolveQuery({ min: breakpoints[key], ...options });
     },
-    max: (key, options) => {
+    max: (key: TBreakpoint, options?: MediaQueryOptions) => {
       const group = resolveKey(key);
       if (!options) {
         return group.max;
@@ -93,7 +109,9 @@ export const buildMediaDescriptor = <TBreakpoint extends string>(
       return resolveQuery({ max: maxValueForNext(next), ...options });
     },
     between,
-  };
+  } as MediaDescriptor<TBreakpoint>;
+
+  return descriptor;
 };
 
 const buildGroupDescriptor = (

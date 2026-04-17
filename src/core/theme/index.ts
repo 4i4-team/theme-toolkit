@@ -49,11 +49,15 @@ import type {
 } from "../../subsystems/layout";
 import type { MediaHelpers } from "../../subsystems/media";
 
+type ColorsSubsystemSource<TPaletteKey extends string, TBreakpoint extends string> =
+  Record<TPaletteKey, PaletteSource> & {
+    recipes?: PaletteRecipeSource<TBreakpoint>;
+  };
+
 type ThemeWithBreakpoints<T extends string, TPaletteKey extends string> = {
   breakpoints: Breakpoints<T>;
   typography?: TypographySource;
-  palette?: Record<TPaletteKey, PaletteSource>;
-  paletteRecipes?: PaletteRecipeSource<T>;
+  colors?: ColorsSubsystemSource<TPaletteKey, T>;
   layout?: LayoutConfig<T>;
 };
 
@@ -243,6 +247,16 @@ export function createTheme<
     ThemeWithLayout<T> &
     ThemeWithAggregateCss;
 
+  const extractPaletteProperties = (
+    source: ColorsSubsystemSource<TPaletteKey, T> | undefined,
+  ): PaletteCollection<TPaletteKey> | undefined => {
+    if (!source) return undefined;
+    const { recipes: _recipes, ...properties } = source as Record<string, unknown>;
+    return Object.keys(properties).length
+      ? (properties as unknown as PaletteCollection<TPaletteKey>)
+      : undefined;
+  };
+
   const normalizePaletteCollection = (
     palette: PaletteCollection<TPaletteKey> | undefined,
     breakpoints: Breakpoints<T>,
@@ -365,7 +379,9 @@ export function createTheme<
   let cachedMediaConfig = resolveMediaConfig(clone, options?.media);
   let cachedMedia = media(cachedBreakpoints, cachedMediaConfig);
   let cachedMediaDescriptor = buildMediaDescriptorInstance(cachedBreakpoints, cachedMediaConfig);
-  let cachedPaletteSource = clone.palette;
+  let rawColorsSource: ColorsSubsystemSource<TPaletteKey, T> | undefined = clone.colors;
+  let cachedColorsInput: ColorsSubsystemSource<TPaletteKey, T> | undefined = rawColorsSource;
+  let cachedPaletteSource = extractPaletteProperties(cachedColorsInput);
   let cachedPaletteBreakpoints = clone.breakpoints;
   let cachedNormalizedPalette = normalizePaletteCollection(
     cachedPaletteSource,
@@ -378,7 +394,7 @@ export function createTheme<
     cachedMediaDescriptor,
   );
   let cachedPaletteVariablesMedia = cachedMediaDescriptor;
-  let cachedPaletteRecipesSource = clone.paletteRecipes;
+  let cachedPaletteRecipesSource = cachedColorsInput?.recipes;
   let cachedPaletteRecipeTokens = cachedPaletteTokens;
   let cachedPaletteRecipeBreakpoints = cachedPaletteBreakpoints;
   let cachedPaletteRecipeMedia = cachedMediaDescriptor;
@@ -410,13 +426,15 @@ export function createTheme<
     cachedPaletteRecipeMedia,
   );
   const syncPalette = () => {
-    const currentPalette = clone.palette;
+    const currentColorsInput = rawColorsSource;
+    const currentPalette = extractPaletteProperties(currentColorsInput);
     const currentBreakpoints = clone.breakpoints;
 
     if (
-      currentPalette !== cachedPaletteSource ||
+      currentColorsInput !== cachedColorsInput ||
       currentBreakpoints !== cachedPaletteBreakpoints
     ) {
+      cachedColorsInput = currentColorsInput;
       cachedPaletteSource = currentPalette;
       cachedPaletteBreakpoints = currentBreakpoints;
       cachedNormalizedPalette = normalizePaletteCollection(
@@ -504,7 +522,7 @@ export function createTheme<
     syncPalette();
     refreshMediaIfStale();
     const tokens = getPaletteTokens();
-    const recipesSource = clone.paletteRecipes;
+    const recipesSource = cachedColorsInput?.recipes;
     const recipeBreakpoints = clone.breakpoints;
 
     if (
@@ -556,7 +574,7 @@ export function createTheme<
 
   const paletteNamespace: PaletteThemeNamespace<TPaletteKey, T> = {
     get source() {
-      return clone.palette as PaletteCollection<TPaletteKey> | undefined;
+      return extractPaletteProperties(rawColorsSource);
     },
     get tokens() {
       return getPaletteTokens();
@@ -570,7 +588,12 @@ export function createTheme<
   };
 
   Object.defineProperty(clone, "colors", {
-    value: paletteNamespace,
+    get() {
+      return paletteNamespace;
+    },
+    set(value: ColorsSubsystemSource<TPaletteKey, T> | undefined) {
+      rawColorsSource = value;
+    },
     enumerable: true,
     configurable: true,
   });

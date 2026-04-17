@@ -14,7 +14,7 @@ import { buildPaletteRecipes } from "./recipes";
 
 export const createPaletteThemeHelper = (): SubsystemThemeHelper =>
   ({
-    key: "palette",
+    key: "colors",
     normalizeProperty: (name: string, _raw: PalettePropertyValue, normalized: unknown) =>
       finalizePaletteNormalization(name, normalized as NormalizedPaletteValue),
     tokenizeProperty: (name: string, normalized: unknown, baseToken: PaletteTokens) =>

@@ -114,6 +114,8 @@ rawSection.innerHTML = `
   <pre>${escapeHtml(JSON.stringify({
     "theme.colors.primary": (theme.colors as any).primary,
     "theme.colors.accent": (theme.colors as any).accent,
+    "theme.colors.neutral": (theme.colors as any).neutral,
+    "theme.colors.surface": (theme.colors as any).surface,
   }, null, 2))}</pre>
 `;
 app.appendChild(rawSection);

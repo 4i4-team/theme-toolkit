@@ -1,7 +1,6 @@
 import { media } from "../../adapters/styled-components/media";
 import type {
   ThemeWithMedia,
-  MediaGroup,
 } from "../../adapters/styled-components/media";
 import type { MediaConfig } from "../media";
 import type { Breakpoints, CssNode, CssRuleNode, CssVariablesNode, NormalizedPropertyValue, NormalizedRecipeGroup } from "../common";
@@ -25,7 +24,6 @@ import {
   resolveMediaConfig as resolveCoreMediaConfig,
 } from "../media";
 import type { MediaDescriptor } from "../media";
-import { css } from "styled-components";
 import {
   createPaletteCssVariableResolver,
   createPaletteThemeHelper,
@@ -42,8 +40,8 @@ import type {
   PalettePropertyExtras,
   PalettePropertyValue,
 } from "../../subsystems/colors";
-import { createTypographyThemeHelper } from "../../subsystems/typography";
-import type { TypographySource, TypographyTokens } from "../../subsystems/typography";
+import { buildTypographyTokens, buildTypographyVariableNodes, createTypographyStyle } from "../../subsystems/typography";
+import type { TypographySource, TypographyTokens, TypographyBuilderOptions } from "../../subsystems/typography";
 import { buildGridTokens } from "../../subsystems/layout";
 import type {
   LayoutConfig,
@@ -89,22 +87,17 @@ type ThemeWithAggregateCss = {
   readonly nodes: CssNode[];
 };
 
-type TypographyNamespace = {
-  readonly source?: TypographySource;
+type TypographyComputedProperties = {
   readonly tokens?: TypographyTokens;
-  readonly css: string;
-  mixin: (group: string, variant: string) => ReturnType<typeof css>;
+  readonly variables: CssVariablesNode[];
+  readonly nodes: CssNode[];
+  style: (group: string, variant: string) => Record<string, string | number>;
 };
+
+type TypographyThemeSlice = TypographySource & TypographyComputedProperties;
 
 type ThemeWithTypography = {
-  typography: TypographyNamespace;
-};
-
-type TypographyThemeSlice = {
-  source?: TypographySource;
-  tokens?: TypographyTokens;
-  css: string;
-  mixin: (group: string, variant: string) => ReturnType<typeof css>;
+  typography: TypographyThemeSlice;
 };
 
 type ThemeWithLayout<T extends string> = {
@@ -118,11 +111,11 @@ type ThemeWithLayout<T extends string> = {
   layoutStack: LayoutHelpers<T>["stack"];
   layoutGrid: LayoutHelpers<T>["grid"];
   layoutClassPrefix: string;
-  layoutColumnsMixin: () => ReturnType<typeof css>;
-  layoutContainerMixin: (name: string) => ReturnType<typeof css>;
-  layoutStyleMixin: (group: string, variant: string) => ReturnType<typeof css>;
-  layoutStackMixin: (name: string) => ReturnType<typeof css>;
-  layoutGridMixin: (name: string) => ReturnType<typeof css>;
+  layoutColumnsMixin: () => unknown;
+  layoutContainerMixin: (name: string) => unknown;
+  layoutStyleMixin: (group: string, variant: string) => unknown;
+  layoutStackMixin: (name: string) => unknown;
+  layoutGridMixin: (name: string) => unknown;
 };
 
 type PaletteRecipeOutput<TBreakpoint extends string> = {
@@ -521,20 +514,23 @@ export function createTheme<
     }
     return cachedPaletteVariables;
   };
-  const typographyHelper = createTypographyThemeHelper();
   let rawTypographySource = clone.typography as TypographySource | undefined;
   let cachedTypographySource = rawTypographySource;
-  let cachedTypographySlice = typographyHelper.buildHelpers(
-    rawTypographySource,
-    options?.typography,
-  ) as TypographyThemeSlice;
+  let cachedTypographyTokens: TypographyTokens | undefined = rawTypographySource
+    ? buildTypographyTokens(rawTypographySource, { unit: (options?.typography as TypographyBuilderOptions)?.unit ?? "px" })
+    : undefined;
+  let cachedTypographyVariables: CssVariablesNode[] = cachedTypographyTokens
+    ? buildTypographyVariableNodes(cachedTypographyTokens, (options?.typography as TypographyBuilderOptions)?.prefix)
+    : [];
   const syncTypography = () => {
     if (rawTypographySource !== cachedTypographySource) {
-      cachedTypographySlice = typographyHelper.buildHelpers(
-        rawTypographySource,
-        options?.typography,
-      ) as TypographyThemeSlice;
       cachedTypographySource = rawTypographySource;
+      cachedTypographyTokens = rawTypographySource
+        ? buildTypographyTokens(rawTypographySource, { unit: (options?.typography as TypographyBuilderOptions)?.unit ?? "px" })
+        : undefined;
+      cachedTypographyVariables = cachedTypographyTokens
+        ? buildTypographyVariableNodes(cachedTypographyTokens, (options?.typography as TypographyBuilderOptions)?.prefix)
+        : [];
     }
   };
   let cachedLayoutSource = clone.layout;
@@ -680,78 +676,46 @@ export function createTheme<
     configurable: true,
   });
 
-  const typographyNamespace: TypographyNamespace = {
-    get source() {
-      return rawTypographySource;
-    },
-    get tokens() {
-      syncTypography();
-      return cachedTypographySlice.tokens;
-    },
-    get css() {
-      syncTypography();
-      return cachedTypographySlice.css;
-    },
-    mixin: (group: string, variant: string) => {
-      syncTypography();
-      const baseMixin = cachedTypographySlice.mixin;
-      const tokens = cachedTypographySlice.tokens;
-      const mixin = baseMixin(group, variant);
-      const responsive = rawTypographySource?.styles?.[group]?.[variant]?.responsive ?? [];
+  const buildTypographySlice = (): TypographyThemeSlice => {
+    if (!rawTypographySource) {
+      return { families: {} as any, weights: {} as any, lineHeights: {} as any, letterSpacings: {} as any, scale: {} as any, styles: {} } as TypographyThemeSlice;
+    }
+    const source = rawTypographySource;
+    const slice = { ...source } as TypographyThemeSlice;
 
-      if (!responsive.length || !clone.media || !tokens) {
-        return mixin;
-      }
+    Object.defineProperty(slice, "tokens", {
+      get: () => { syncTypography(); return cachedTypographyTokens; },
+      enumerable: true, configurable: true,
+    });
+    Object.defineProperty(slice, "variables", {
+      get: () => { syncTypography(); return cachedTypographyVariables; },
+      enumerable: true, configurable: true,
+    });
+    Object.defineProperty(slice, "nodes", {
+      get: () => { syncTypography(); return [...cachedTypographyVariables]; },
+      enumerable: true, configurable: true,
+    });
+    Object.defineProperty(slice, "style", {
+      get: () => (group: string, variant: string) => {
+        syncTypography();
+        if (!cachedTypographyTokens) throw new Error("Typography source is not defined.");
+        return createTypographyStyle(cachedTypographyTokens, group, variant);
+      },
+      enumerable: true, configurable: true,
+    });
 
-      const responsiveCss = responsive.map(rule => {
-        const mediaGroup = (clone.media as unknown as Record<string, MediaGroup | undefined>)[
-          rule.breakpoint
-        ];
-
-        if (!mediaGroup) {
-          return css``;
-        }
-
-        const mediaTemplate = mediaGroup[rule.query ?? "exact"];
-        if (!mediaTemplate) {
-          return css``;
-        }
-
-        const scale = rule.size ? tokens.scale[rule.size] : undefined;
-        const weight = rule.weight ? tokens.weights[rule.weight] : undefined;
-        const lineHeight = rule.lineHeight
-          ? tokens.lineHeights[rule.lineHeight]
-          : undefined;
-        const letterSpacing = rule.letterSpacing
-          ? tokens.letterSpacings[rule.letterSpacing]
-          : undefined;
-
-        return mediaTemplate`
-          ${scale ? `font-size: ${scale.value}${scale.unit};` : ""}
-          ${weight ? `font-weight: ${weight};` : ""}
-          ${lineHeight !== undefined ? `line-height: ${lineHeight};` : ""}
-          ${letterSpacing !== undefined ? `letter-spacing: ${letterSpacing};` : ""}
-        `;
-      });
-
-      return css`
-        ${mixin}
-        ${responsiveCss}
-      `;
-    },
+    return slice;
   };
+
+  let cachedTypographySlice = buildTypographySlice();
 
   Object.defineProperty(clone, "typography", {
     get() {
-      return typographyNamespace;
+      return cachedTypographySlice;
     },
     set(value: TypographySource | undefined) {
       rawTypographySource = value as TypographySource | undefined;
-      cachedTypographySource = rawTypographySource;
-      cachedTypographySlice = typographyHelper.buildHelpers(
-        rawTypographySource,
-        options?.typography,
-      ) as TypographyThemeSlice;
+      cachedTypographySlice = buildTypographySlice();
     },
     enumerable: true,
     configurable: true,
@@ -915,6 +879,8 @@ export function createTheme<
     nodes.push(...getPaletteVariables());
     ensurePaletteRecipes();
     nodes.push(...cachedPaletteRecipes.nodes);
+    syncTypography();
+    nodes.push(...cachedTypographyVariables);
     return nodes;
   };
 
@@ -928,16 +894,13 @@ export function createTheme<
 
   Object.defineProperty(clone, "css", {
     get() {
-      const rendered = renderToCssString(collectNodes());
-      const legacyParts: string[] = [];
-      const typographyCss = typographyNamespace.css;
-      if (typographyCss) legacyParts.push(typographyCss);
+      const allNodes = collectNodes();
       ensureLayout();
-      if (cachedLayout.layoutCSS) legacyParts.push(cachedLayout.layoutCSS);
-      const legacy = legacyParts.join("\n\n");
-      if (!rendered) return legacy;
-      if (!legacy) return rendered;
-      return `${rendered}\n\n${legacy}`;
+      const layoutCss = cachedLayout.layoutCSS;
+      const rendered = renderToCssString(allNodes);
+      if (!rendered) return layoutCss || "";
+      if (!layoutCss) return rendered;
+      return `${rendered}\n\n${layoutCss}`;
     },
     enumerable: true,
     configurable: true,

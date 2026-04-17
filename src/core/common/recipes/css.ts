@@ -1,6 +1,6 @@
 import type { MediaDescriptor } from "../../media";
 import type { CssDeclaration, CssRuleNode } from "../cssNodes";
-import type { RecipeResponsiveOverride } from "../types";
+import type { RecipeResponsiveOverride, ResponsiveOrientation } from "../types";
 
 export type RecipeStyleBlock = Record<string, string | number>;
 
@@ -28,7 +28,23 @@ export type GenerateRecipeCssOptions<TBreakpoint extends string> = {
   selectorBuilder: (variantName: string) => string;
 };
 
-const RESERVED_KEYS = new Set(["breakpoint", "query", "variant", "target"]);
+const RESERVED_KEYS = new Set(["breakpoint", "query", "variant", "target", "orientation"]);
+
+const resolveRecipeMediaQuery = <TBreakpoint extends string>(
+  media: MediaDescriptor<TBreakpoint>,
+  breakpoint: TBreakpoint,
+  query: "min" | "max" | "exact",
+  orientation?: ResponsiveOrientation,
+): string => {
+  if (!orientation) {
+    const group = media[breakpoint];
+    return group?.[query] ?? "";
+  }
+  const opts = { orientation };
+  if (query === "min") return media.min(breakpoint, opts);
+  if (query === "max") return media.max(breakpoint, opts);
+  return media.exact(breakpoint, opts);
+};
 
 export const generateRecipeCss = <TBreakpoint extends string>(
   group: InterpretedRecipeGroup<TBreakpoint>,
@@ -47,9 +63,12 @@ export const generateRecipeCss = <TBreakpoint extends string>(
     }
 
     variant.responsive.forEach(entry => {
-      const mediaGroup = options.media[entry.breakpoint];
-      if (!mediaGroup) return;
-      const mediaQuery = mediaGroup[entry.query];
+      const mediaQuery = resolveRecipeMediaQuery(
+        options.media,
+        entry.breakpoint,
+        entry.query,
+        entry.orientation,
+      );
       if (!mediaQuery) return;
 
       const declarations = toDeclarations(entry as RecipeStyleBlock, true);

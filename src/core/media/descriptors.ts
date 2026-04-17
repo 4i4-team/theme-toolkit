@@ -3,7 +3,7 @@ import type { MediaQueryOptions } from "./queries";
 
 export const BREAKPOINT_EPSILON = 0.02;
 
-const RESERVED_BREAKPOINT_KEYS = ["min", "max", "between"] as const;
+const RESERVED_BREAKPOINT_KEYS = ["min", "max", "exact", "between"] as const;
 
 export type MediaVariant = "min" | "max" | "exact";
 
@@ -12,6 +12,7 @@ export type MediaGroupDescriptor = Record<MediaVariant, string>;
 export type MediaDescriptor<TBreakpoint extends string> = {
   min: (key: TBreakpoint, options?: MediaQueryOptions) => string;
   max: (key: TBreakpoint, options?: MediaQueryOptions) => string;
+  exact: (key: TBreakpoint, options?: MediaQueryOptions) => string;
   between: (
     from: TBreakpoint,
     to: TBreakpoint,
@@ -107,6 +108,15 @@ export const buildMediaDescriptor = <TBreakpoint extends string>(
       const nextKey = nextOf(key);
       const next = nextKey !== undefined ? breakpoints[nextKey] : undefined;
       return resolveQuery({ max: maxValueForNext(next), ...options });
+    },
+    exact: (key: TBreakpoint, options?: MediaQueryOptions) => {
+      const group = resolveKey(key);
+      if (!options) {
+        return group.exact;
+      }
+      const nextKey = nextOf(key);
+      const next = nextKey !== undefined ? breakpoints[nextKey] : undefined;
+      return resolveQuery({ min: breakpoints[key], max: maxValueForNext(next), ...options });
     },
     between,
   } as MediaDescriptor<TBreakpoint>;

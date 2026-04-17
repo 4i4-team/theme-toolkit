@@ -6,6 +6,8 @@ export type NormalizedBreakpoints<TKey extends string = string> = Record<TKey, {
 
 export type ResponsiveQuery = "min" | "max" | "exact";
 
+export type ResponsiveOrientation = "landscape" | "portrait";
+
 export type ResponsiveOverride<
   TValue,
   TExtra extends Record<string, unknown> = Record<string, never>,
@@ -15,6 +17,7 @@ export type ResponsiveOverride<
   query?: ResponsiveQuery;
   variant?: string;
   target?: string;
+  orientation?: ResponsiveOrientation;
 } & Partial<{ base: TValue } & TExtra>;
 
 export type NormalizedResponsiveOverride<
@@ -83,6 +86,7 @@ export type RecipeResponsiveOverride<
   query?: ResponsiveQuery;
   variant?: string;
   target?: string;
+  orientation?: ResponsiveOrientation;
 } & Partial<TProps>;
 
 export type RecipeVariantDefinition<

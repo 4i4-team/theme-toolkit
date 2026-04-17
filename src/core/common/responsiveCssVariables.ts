@@ -2,7 +2,7 @@ import type { MediaDescriptor } from "../media";
 import type { CssVariablesNode } from "./cssNodes";
 import type { CssVariableMap } from "./cssVariables";
 import { DEFAULT_RESPONSIVE_QUERY } from "./responsive";
-import type { NormalizedPropertyValue } from "./types";
+import type { NormalizedPropertyValue, ResponsiveOrientation, ResponsiveQuery } from "./types";
 
 export type ResolveCssVariableName = (
   propertyName: string,
@@ -17,8 +17,24 @@ export type ExpandResponsiveCssVariablesOptions<TBreakpoint extends string> = {
   selector?: string;
 };
 
-const RESERVED_KEYS = new Set(["breakpoint", "query", "variant", "target"]);
+const RESERVED_KEYS = new Set(["breakpoint", "query", "variant", "target", "orientation"]);
 const DEFAULT_SELECTOR = ":root";
+
+const resolveMediaQuery = <TBreakpoint extends string>(
+  media: MediaDescriptor<TBreakpoint>,
+  breakpoint: TBreakpoint,
+  query: ResponsiveQuery,
+  orientation?: ResponsiveOrientation,
+): string => {
+  if (!orientation) {
+    const group = media[breakpoint];
+    return group?.[query] ?? "";
+  }
+  const opts = { orientation };
+  if (query === "min") return media.min(breakpoint, opts);
+  if (query === "max") return media.max(breakpoint, opts);
+  return media.exact(breakpoint, opts);
+};
 
 const defaultFormatValue = (value: unknown): string =>
   value === null || value === undefined ? "" : String(value);
@@ -41,9 +57,12 @@ export const expandResponsiveCssVariables = <
 
   for (const [propertyName, property] of Object.entries(properties)) {
     for (const entry of property.responsive) {
-      const group = media[entry.breakpoint];
-      if (!group) continue;
-      const mediaQuery = group[entry.query ?? DEFAULT_RESPONSIVE_QUERY];
+      const mediaQuery = resolveMediaQuery(
+        media,
+        entry.breakpoint,
+        entry.query ?? DEFAULT_RESPONSIVE_QUERY,
+        entry.orientation as ResponsiveOrientation | undefined,
+      );
       if (!mediaQuery) continue;
 
       const updates = computeEntryUpdates(

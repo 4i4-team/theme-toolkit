@@ -14,14 +14,13 @@ export interface ThemeAugmentation {
   colors: Record<string, unknown> & {
     tokens: Record<string, PaletteTokens>;
     variables: CssVariablesNode[];
+    nodes: CssNode[];
+    classes: Record<string, Record<string, string>>;
+    styles: Record<string, PaletteRecipeStyleMap<string>>;
+    getClass: (group: string, variant: string) => string | undefined;
     lighten: (name: string, percent: number) => string;
     darken: (name: string, percent: number) => string;
-    recipes: {
-      nodes: CssRuleNode[];
-      classes: Record<string, Record<string, string>>;
-      styles: Record<string, PaletteRecipeStyleMap<string>>;
-      getClass: (group: string, variant: string) => string | undefined;
-    };
+    recipes: Record<string, unknown>;
   };
   typography: {
     source?: Record<string, unknown>;

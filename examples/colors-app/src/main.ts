@@ -110,9 +110,30 @@ app.appendChild(stepsSection);
 
 // --- Raw input ---
 const rawSection = document.createElement("section");
+const colorEntries = Object.entries(rawTheme.colors).map(([key, value]) => {
+  if (key === "recipes") return null;
+  if (typeof value === "string") return `  ${key}: "${value}",`;
+  const v = value as Record<string, unknown>;
+  const parts = [`base: "${v.base}"`, v.text ? `text: "${v.text}"` : ""].filter(Boolean);
+  if (v.steps) parts.push(`steps: [${(v.steps as number[]).join(", ")}]`);
+  if (v.responsive) parts.push(`responsive: [...]`);
+  if (v.lightenBy) parts.push(`lightenBy: ${v.lightenBy}`);
+  if (v.darkenBy) parts.push(`darkenBy: ${v.darkenBy}`);
+  if (v.baseStep) parts.push(`baseStep: ${v.baseStep}`);
+  return `  ${key}: { ${parts.join(", ")} },`;
+}).filter(Boolean);
+
+const recipeGroups = Object.keys((rawTheme.colors as any).recipes ?? {});
+const recipeLine = recipeGroups.length
+  ? `  recipes: { ${recipeGroups.map(g => `${g}: {...}`).join(", ")} },`
+  : "";
+
 rawSection.innerHTML = `
   <h2>Raw input (rawTheme.colors)</h2>
-  <pre>${escapeHtml(JSON.stringify(rawTheme.colors, null, 2))}</pre>
+  <pre><code>colors: {
+${colorEntries.join("\n")}
+${recipeLine}
+}</code></pre>
 `;
 app.appendChild(rawSection);
 

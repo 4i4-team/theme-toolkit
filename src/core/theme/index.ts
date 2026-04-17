@@ -593,25 +593,6 @@ export function createTheme<
     }
   };
 
-  const paletteRecipesNamespace: PaletteRecipeNamespace<T> = {
-    get nodes() {
-      ensurePaletteRecipes();
-      return cachedPaletteRecipes.nodes;
-    },
-    get classes() {
-      ensurePaletteRecipes();
-      return cachedPaletteRecipes.classes;
-    },
-    get styles() {
-      ensurePaletteRecipes();
-      return cachedPaletteRecipes.styles;
-    },
-    getClass(group, variant) {
-      ensurePaletteRecipes();
-      return cachedPaletteRecipes.classes[group]?.[variant];
-    },
-  };
-
   const buildPaletteSliceExtras = () => {
     const tokens = getPaletteTokens();
     const variables = getPaletteVariables();
@@ -630,8 +611,36 @@ export function createTheme<
       : {};
   };
 
+  const buildRecipesSlice = () => {
+    const rawRecipes = rawColorsSource?.recipes ?? {};
+    const slice = { ...rawRecipes } as Record<string, unknown>;
+
+    Object.defineProperty(slice, "nodes", {
+      get: () => { ensurePaletteRecipes(); return cachedPaletteRecipes.nodes; },
+      enumerable: true, configurable: true,
+    });
+    Object.defineProperty(slice, "classes", {
+      get: () => { ensurePaletteRecipes(); return cachedPaletteRecipes.classes; },
+      enumerable: true, configurable: true,
+    });
+    Object.defineProperty(slice, "styles", {
+      get: () => { ensurePaletteRecipes(); return cachedPaletteRecipes.styles; },
+      enumerable: true, configurable: true,
+    });
+    Object.defineProperty(slice, "getClass", {
+      get: () => (group: string, variant: string) => {
+        ensurePaletteRecipes();
+        return cachedPaletteRecipes.classes[group]?.[variant];
+      },
+      enumerable: true, configurable: true,
+    });
+
+    return slice;
+  };
+
   const buildColorsSlice = (): PaletteThemeSlice<TPaletteKey, T> => {
     const properties = extractPaletteProperties(rawColorsSource) ?? ({} as PaletteCollection<TPaletteKey>);
+    const recipesSlice = buildRecipesSlice();
     const slice = { ...properties } as PaletteThemeSlice<TPaletteKey, T>;
 
     Object.defineProperty(slice, "tokens", {
@@ -657,8 +666,8 @@ export function createTheme<
       enumerable: true, configurable: true,
     });
     Object.defineProperty(slice, "recipes", {
-      get: () => paletteRecipesNamespace,
-      enumerable: true, configurable: true,
+      value: recipesSlice,
+      enumerable: true, configurable: true, writable: true,
     });
 
     return slice;
@@ -911,7 +920,8 @@ export function createTheme<
   const collectNodes = (): CssNode[] => {
     const nodes: CssNode[] = [];
     nodes.push(...getPaletteVariables());
-    nodes.push(...paletteRecipesNamespace.nodes);
+    ensurePaletteRecipes();
+    nodes.push(...cachedPaletteRecipes.nodes);
     return nodes;
   };
 

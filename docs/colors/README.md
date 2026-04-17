@@ -76,7 +76,7 @@ createTheme({
 | `baseStep` | `string \| number` | no | Which step corresponds to the base color. Defaults to `"500"` (if in the list) or the middle step. |
 | `lightenBy` | `number` | no | Percentage (0–100) to lighten per step. Default: `20`. |
 | `darkenBy` | `number` | no | Percentage (0–100) to darken per step. Default: `20`. |
-| `algorithm` | `(base, step) => string` | no | Custom color generator. Receives the previous step's color and the step name. |
+| `algorithm` | `(prev, step, base) => string` | no | Custom color generator. `prev` = previous step's color, `step` = step name, `base` = original base color. |
 | `responsive` | `Array<ResponsiveOverride>` | no | Breakpoint-scoped overrides. See [Responsive](#responsive). |
 
 ---

@@ -55,6 +55,7 @@ export type RecipeInterpretContext<TBreakpoint extends string> = {
   breakpoints: Record<TBreakpoint, number>;
   resolveCssVariable: ResolveCssVariableName;
   resolveRecipeVariant: (variantName: string) => InterpretedRecipeVariant<TBreakpoint>;
+  groupPath: string;
   options?: unknown;
 };
 
@@ -93,8 +94,11 @@ export type RecipeOutputs<TBreakpoint extends string, TRecipeStyle extends Recip
 export type SubsystemSliceContext = {
   source?: unknown;
   tokens: unknown;
-  css: string;
-  recipes?: unknown;
+  variableNodes: CssVariablesNode[];
+  recipes?: {
+    nodes: CssRuleNode[];
+    classes: Record<string, Record<string, string>>;
+  };
   options?: unknown;
 };
 

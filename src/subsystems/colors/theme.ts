@@ -1,16 +1,14 @@
 import type {
   PaletteBuilderOptions,
-  PaletteCollection,
   PaletteTokens,
-  PaletteRecipeSource,
   NormalizedPaletteValue,
   PalettePropertyValue,
 } from "./types";
-import type { SubsystemThemeHelper } from "../../core/theme/helpers";
-import type { MediaDescriptor } from "../../core/media";
+import type { SubsystemThemeHelper, SubsystemSliceContext } from "../../core/theme/helpers";
 import { finalizePaletteNormalization } from "./normalize";
 import { tokenizePaletteProperty, mapPaletteCssVariables } from "./tokens";
-import { buildPaletteRecipes } from "./recipes";
+import { interpretPaletteRecipeVariant } from "./recipes";
+import { lighten, darken } from "./utils";
 
 export const createPaletteThemeHelper = (): SubsystemThemeHelper =>
   ({
@@ -21,25 +19,20 @@ export const createPaletteThemeHelper = (): SubsystemThemeHelper =>
       tokenizePaletteProperty(name, normalized as NormalizedPaletteValue, baseToken),
     mapCssVariables: (tokens: Record<string, PaletteTokens>, prefix: string) =>
       mapPaletteCssVariables(tokens, prefix),
-    buildHelpers: (_source: PaletteCollection<string> | undefined) => ({}) as Record<
-      string,
-      PaletteTokens
-    >,
-    buildRecipes: (
-      recipes: PaletteRecipeSource<string> | undefined,
-      tokens: Record<string, PaletteTokens>,
-      context: {
-        breakpoints: Record<string, number>;
-        media: MediaDescriptor<string>;
-        options?: PaletteBuilderOptions;
-      },
-    ) => {
-      const paletteOptions = context.options as PaletteBuilderOptions | undefined;
-      return buildPaletteRecipes(recipes, tokens, {
-        breakpoints: context.breakpoints as Record<string, number>,
-        media: context.media as MediaDescriptor<string>,
-        prefix: paletteOptions?.prefix,
-        classPrefix: paletteOptions?.classPrefix,
-      });
+    interpretRecipe: (variantName: string, variant: any, context: any) =>
+      interpretPaletteRecipeVariant(variantName, variant, context),
+    buildSlice: (context: SubsystemSliceContext) => {
+      const tokens = context.tokens as Record<string, PaletteTokens>;
+      const resolveBaseColor = (name: string): string => {
+        const palette = tokens[name];
+        if (!palette) {
+          throw new Error(`Palette color "${name}" is not defined.`);
+        }
+        return palette.variants.main;
+      };
+      return {
+        lighten: (name: string, percent: number) => lighten(resolveBaseColor(name), percent),
+        darken: (name: string, percent: number) => darken(resolveBaseColor(name), percent),
+      };
     },
   }) as unknown as SubsystemThemeHelper;

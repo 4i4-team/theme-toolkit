@@ -4,7 +4,7 @@ import type {
   ThemeWithMedia,
   MediaGroup,
 } from "../../subsystems/media";
-import type { Breakpoints, CssNode, CssRuleNode, CssVariablesNode, NormalizedPropertyValue } from "../common";
+import type { Breakpoints, CssNode, CssRuleNode, CssVariablesNode, NormalizedPropertyValue, NormalizedRecipeGroup } from "../common";
 import {
   normalizePropertyValue,
   generateTokens,
@@ -12,6 +12,11 @@ import {
   renderToCssString,
   normalizeCssVariablePrefix,
   expandResponsiveCssVariables,
+  normalizeRecipeGroup,
+  generateRecipeCss,
+  assignRecipeClasses,
+  createRecipeVariantResolver,
+  sanitizeIdentifierSegment,
 } from "../common";
 import {
   buildMediaDescriptor,
@@ -23,8 +28,6 @@ import { css } from "styled-components";
 import {
   createPaletteCssVariableResolver,
   createPaletteThemeHelper,
-  darken,
-  lighten,
 } from "../../subsystems/colors";
 import type {
   PaletteBuilderOptions,
@@ -398,25 +401,69 @@ export function createTheme<
   let cachedPaletteRecipeTokens = cachedPaletteTokens;
   let cachedPaletteRecipeBreakpoints = cachedPaletteBreakpoints;
   let cachedPaletteRecipeMedia = cachedMediaDescriptor;
+  const buildRecipeSelectorPrefix = (classPrefix: string | undefined, groupName: string): string => {
+    const base = sanitizeIdentifierSegment(classPrefix ?? "dt-color") || "dt-color";
+    const groupSegment = sanitizeIdentifierSegment(groupName);
+    return groupSegment ? `${base}-${groupSegment}` : base;
+  };
+
   const buildPaletteRecipesOutput = (
-    recipes: PaletteRecipeSource<T> | undefined,
+    recipeSource: PaletteRecipeSource<T> | undefined,
     tokens: Record<TPaletteKey, PaletteTokens>,
     breakpoints: Breakpoints<T>,
     mediaDescriptor: MediaDescriptor<T>,
   ): PaletteRecipeOutput<T> => {
-    if (!paletteHelper.buildRecipes) {
-      return {
-        nodes: [],
-        classes: {},
-        styles: {},
-      };
+    if (!recipeSource || !Object.keys(recipeSource).length || !paletteHelper.interpretRecipe) {
+      return { nodes: [], classes: {}, styles: {} };
     }
 
-    return paletteHelper.buildRecipes(recipes, tokens, {
-      breakpoints,
-      media: mediaDescriptor,
-      options: options?.palette,
-    }) as PaletteRecipeOutput<T>;
+    const prefix = normalizeCssVariablePrefix(options?.palette?.prefix);
+    const resolveCssVariable = createPaletteCssVariableResolver(prefix);
+    const allowedBreakpoints = Object.keys(breakpoints) as T[];
+    const allNodes: CssRuleNode[] = [];
+    const allClasses: Record<string, Record<string, string>> = {};
+    const allStyles: Record<string, PaletteRecipeStyleMap<T>> = {};
+
+    for (const [groupName, groupDef] of Object.entries(recipeSource) as [string, Record<string, unknown>][]) {
+      const normalized = normalizeRecipeGroup(groupDef as any, {
+        propertyPath: `colors.recipes.${groupName}`,
+        allowedBreakpoints,
+      });
+
+      const groupPath = `colors.recipes.${groupName}`;
+      const resolver = createRecipeVariantResolver(
+        normalized,
+        (variantName, variant, resolve) =>
+          paletteHelper.interpretRecipe!(variantName, variant as any, {
+            tokens,
+            breakpoints,
+            resolveCssVariable,
+            resolveRecipeVariant: resolve as any,
+            groupPath,
+          }) as any,
+        { groupPath },
+      );
+
+      const interpreted = resolver.resolveAll();
+      allStyles[groupName] = interpreted as PaletteRecipeStyleMap<T>;
+
+      const selectorPrefix = buildRecipeSelectorPrefix(options?.palette?.classPrefix, groupName);
+      const { nodes, variants } = generateRecipeCss(interpreted as any, {
+        media: mediaDescriptor,
+        selectorBuilder: variantName =>
+          `.${selectorPrefix}-${sanitizeIdentifierSegment(variantName)}`,
+      });
+
+      allNodes.push(...nodes);
+
+      const classEntries = assignRecipeClasses(variants, { prefix: selectorPrefix });
+      allClasses[groupName] = classEntries.reduce<Record<string, string>>((acc, entry) => {
+        acc[entry.variant] = entry.className;
+        return acc;
+      }, {});
+    }
+
+    return { nodes: allNodes, classes: allClasses, styles: allStyles };
   };
 
   let cachedPaletteRecipes = buildPaletteRecipesOutput(
@@ -563,13 +610,22 @@ export function createTheme<
     },
   };
 
-  const resolveBaseColor = (name: TPaletteKey): string => {
+  const buildPaletteSliceExtras = () => {
     const tokens = getPaletteTokens();
-    const palette = tokens[name];
-    if (!palette) {
-      throw new Error(`Palette color "${String(name)}" is not defined.`);
-    }
-    return palette.variants.main;
+    const variables = getPaletteVariables();
+    ensurePaletteRecipes();
+    return paletteHelper.buildSlice
+      ? (paletteHelper.buildSlice({
+          source: extractPaletteProperties(rawColorsSource),
+          tokens,
+          variableNodes: variables,
+          recipes: {
+            nodes: cachedPaletteRecipes.nodes,
+            classes: cachedPaletteRecipes.classes,
+          },
+          options: options?.palette,
+        }) as Record<string, unknown>)
+      : {};
   };
 
   const paletteNamespace: PaletteThemeNamespace<TPaletteKey, T> = {
@@ -582,8 +638,14 @@ export function createTheme<
     get variables() {
       return getPaletteVariables();
     },
-    lighten: (name, percent) => lighten(resolveBaseColor(name), percent),
-    darken: (name, percent) => darken(resolveBaseColor(name), percent),
+    get lighten() {
+      const extras = buildPaletteSliceExtras();
+      return extras.lighten as (name: TPaletteKey, percent: number) => string;
+    },
+    get darken() {
+      const extras = buildPaletteSliceExtras();
+      return extras.darken as (name: TPaletteKey, percent: number) => string;
+    },
     recipes: paletteRecipesNamespace,
   };
 

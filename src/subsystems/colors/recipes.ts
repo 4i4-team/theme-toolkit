@@ -6,11 +6,14 @@ import {
 } from "../../core/common";
 import type {
   CssRuleNode,
+  InterpretedRecipeVariant,
   NormalizedRecipeGroup,
+  NormalizedRecipeVariant,
   RecipeResponsiveOverride,
   RecipeStyleBlock,
   ResolveCssVariableName,
 } from "../../core/common";
+import type { RecipeInterpretContext } from "../../core/theme/helpers";
 import { createPaletteCssVariableResolver } from "./tokens";
 import type {
   PaletteBuilderOptions,
@@ -162,6 +165,52 @@ const interpretPaletteRecipeGroup = <
   });
 
   return interpreted;
+};
+
+export const interpretPaletteRecipeVariant = (
+  variantName: string,
+  variant: NormalizedRecipeVariant<PaletteRecipeProps, string>,
+  context: RecipeInterpretContext<string>,
+): InterpretedRecipeVariant<string> => {
+  const tokens = context.tokens as Record<string, PaletteTokens>;
+  const path = `${context.groupPath}.${variantName}`;
+
+  const base = interpretRecipeProps(
+    variant.base,
+    tokens,
+    context.resolveCssVariable,
+    path,
+  );
+
+  const responsive = variant.responsive.map(entry => {
+    if (entry.target && entry.target !== variantName) {
+      throw new Error(
+        `Responsive recipe entry for ${path} cannot target "${entry.target}".`,
+      );
+    }
+
+    const inherited = entry.variant
+      ? { ...context.resolveRecipeVariant(entry.variant).base }
+      : {};
+
+    const overrides = interpretRecipeProps(
+      entry as unknown as PaletteRecipeProps,
+      tokens,
+      context.resolveCssVariable,
+      `${path}.responsive`,
+    );
+
+    return {
+      ...inherited,
+      ...overrides,
+      breakpoint: entry.breakpoint,
+      query: entry.query ?? "exact",
+    } as RecipeResponsiveOverride<RecipeStyleBlock, string> & {
+      query: "min" | "max" | "exact";
+    };
+  });
+
+  return { base, responsive };
 };
 
 const interpretRecipeProps = <TColor extends string>(

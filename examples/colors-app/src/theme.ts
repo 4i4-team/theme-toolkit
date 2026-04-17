@@ -26,6 +26,7 @@ export const theme = createTheme(
         base: "#6c757d",
         text: "#ffffff",
       },
+      surface: "#f8f9fa",
       recipes: {
         buttons: {
           solid: {

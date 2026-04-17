@@ -15,7 +15,7 @@ export interface RequiredColorSet extends ColorSet {
 export type PaletteVariantMap = Record<string, string>;
 
 export type PalettePropertyExtras = {
-  text: string;
+  text?: string;
   steps?: Array<string | number>;
   baseStep?: string | number;
   lightenBy?: number;
@@ -30,7 +30,7 @@ export type NormalizedPaletteValue = NormalizedPropertyValue<string, PaletteProp
 export type PaletteSource = PalettePropertyValue;
 
 export interface PaletteTokens {
-  text: string;
+  text?: string;
   variants: PaletteVariantMap;
 }
 

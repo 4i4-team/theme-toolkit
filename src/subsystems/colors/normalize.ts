@@ -16,10 +16,6 @@ export const finalizePaletteNormalization = (
   name: string,
   normalized: NormalizedPaletteValue,
 ): NormalizedPaletteValue => {
-  if (!normalized.text) {
-    throw new Error(`Palette "${name}" is missing required "text" color.`);
-  }
-
   const stepVariants = generateStepVariants(normalized);
   if (!Object.keys(stepVariants).length) {
     return normalized;

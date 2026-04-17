@@ -43,7 +43,9 @@ export const mapPaletteCssVariables = <T extends string>(
     const textBase = `${normalizedPrefix}-text--${segment}`;
 
     variables[colorBase] = token.variants.main;
-    variables[textBase] = token.text;
+    if (token.text) {
+      variables[textBase] = token.text;
+    }
 
     Object.entries(token.variants).forEach(([variant, value]) => {
       const variantSegment = sanitizeIdentifierSegment(variant);

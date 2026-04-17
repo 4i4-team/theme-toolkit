@@ -140,9 +140,13 @@ app.appendChild(recipesSection);
 const responsiveSection = document.createElement("section");
 responsiveSection.innerHTML = `
   <h2>Responsive</h2>
-  <p>Resize the window: <code>primary</code> base swaps to <code>#1940b0</code> at
-  <code>sm</code> and below. The outline button border/color swaps to
-  <code>accent</code> at <code>md</code> and above. Pure CSS cascade.</p>
+  <p>Resize the window to see CSS-variable-driven responsive behavior:</p>
+  <ul style="margin:0.5rem 0 1rem 1.5rem;font-size:0.9rem;color:#555;line-height:1.8">
+    <li><code>primary</code> base swaps to <code>#1940b0</code> at <code>sm</code> and below</li>
+    <li><code>accent</code> base swaps to step <code>700</code> at <code>lg</code> and above (step-generated variant referenced in responsive)</li>
+    <li>Outline button border/color swaps to <code>accent</code> at <code>md</code> and above (recipe-level responsive)</li>
+  </ul>
+  <p>All via pure CSS cascade — no JavaScript involved.</p>
 `;
 app.appendChild(responsiveSection);
 

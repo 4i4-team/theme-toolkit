@@ -18,6 +18,9 @@ export const theme = createTheme(
         baseStep: 500,
         lightenBy: 8,
         darkenBy: 12,
+        responsive: [
+          { breakpoint: "lg", query: "min", variant: "700" },
+        ],
       },
       neutral: {
         base: "#6c757d",

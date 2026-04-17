@@ -110,29 +110,44 @@ app.appendChild(stepsSection);
 
 // --- Raw input ---
 const rawSection = document.createElement("section");
+
+const formatValue = (v: unknown): string => {
+  if (v === undefined || v === null) return String(v);
+  if (typeof v === "string") return `"${v}"`;
+  if (typeof v === "number") return String(v);
+  if (Array.isArray(v)) return `[${v.map(formatValue).join(", ")}]`;
+  if (typeof v === "object") {
+    const entries = Object.entries(v as Record<string, unknown>);
+    return `{ ${entries.map(([k, val]) => `${k}: ${formatValue(val)}`).join(", ")} }`;
+  }
+  return String(v);
+};
+
 const colorEntries = Object.entries(rawTheme.colors).map(([key, value]) => {
   if (key === "recipes") return null;
   if (typeof value === "string") return `  ${key}: "${value}",`;
   const v = value as Record<string, unknown>;
-  const parts = [`base: "${v.base}"`, v.text ? `text: "${v.text}"` : ""].filter(Boolean);
-  if (v.steps) parts.push(`steps: [${(v.steps as number[]).join(", ")}]`);
-  if (v.responsive) parts.push(`responsive: [...]`);
-  if (v.lightenBy) parts.push(`lightenBy: ${v.lightenBy}`);
-  if (v.darkenBy) parts.push(`darkenBy: ${v.darkenBy}`);
-  if (v.baseStep) parts.push(`baseStep: ${v.baseStep}`);
-  return `  ${key}: { ${parts.join(", ")} },`;
+  const lines = Object.entries(v).map(([prop, val]) => {
+    if (typeof val === "function") return null;
+    return `    ${prop}: ${formatValue(val)},`;
+  }).filter(Boolean);
+  return `  ${key}: {\n${lines.join("\n")}\n  },`;
 }).filter(Boolean);
 
-const recipeGroups = Object.keys((rawTheme.colors as any).recipes ?? {});
-const recipeLine = recipeGroups.length
-  ? `  recipes: { ${recipeGroups.map(g => `${g}: {...}`).join(", ")} },`
+const recipes = (rawTheme.colors as any).recipes ?? {};
+const recipeLines = Object.entries(recipes).map(([group, variants]) => {
+  const variantNames = Object.keys(variants as Record<string, unknown>);
+  return `    ${group}: { ${variantNames.map(v => `${v}: {...}`).join(", ")} },`;
+});
+const recipeBlock = recipeLines.length
+  ? `  recipes: {\n${recipeLines.join("\n")}\n  },`
   : "";
 
 rawSection.innerHTML = `
   <h2>Raw input (rawTheme.colors)</h2>
   <pre><code>colors: {
 ${colorEntries.join("\n")}
-${recipeLine}
+${recipeBlock}
 }</code></pre>
 `;
 app.appendChild(rawSection);

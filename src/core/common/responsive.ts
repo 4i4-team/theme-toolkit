@@ -1,4 +1,5 @@
-import {
+import type {
+  NormalizedPropertyValue,
   NormalizedResponsiveOverride,
   PropertyNormalizationOptions,
   ResponsiveOverride,
@@ -79,4 +80,32 @@ export function normalizeResponsiveOverrides<
       query: query ?? DEFAULT_RESPONSIVE_QUERY,
     };
   });
+}
+
+export function validateNormalizedResponsiveRefs<
+  TValue,
+  TExtra extends Record<string, unknown> = Record<string, never>,
+  TBreakpoint extends string = string,
+>(
+  normalized: NormalizedPropertyValue<TValue, TExtra, TBreakpoint>,
+  options?: { propertyPath?: string },
+): void {
+  const variantNames = normalized.variants ? Object.keys(normalized.variants) : [];
+  if (!variantNames.length) return;
+
+  const allowed = new Set(variantNames);
+  const label = options?.propertyPath ? ` for "${options.propertyPath}"` : "";
+
+  for (const entry of normalized.responsive) {
+    if (entry.variant && !allowed.has(entry.variant)) {
+      throw new Error(
+        `Responsive entry${label} references unknown variant "${entry.variant}".`,
+      );
+    }
+    if (entry.target && !allowed.has(entry.target)) {
+      throw new Error(
+        `Responsive entry${label} references unknown target "${entry.target}".`,
+      );
+    }
+  }
 }

@@ -7,6 +7,7 @@ import type {
 import type { Breakpoints, CssNode, CssRuleNode, CssVariablesNode, NormalizedPropertyValue, NormalizedRecipeGroup } from "../common";
 import {
   normalizePropertyValue,
+  validateNormalizedResponsiveRefs,
   generateTokens,
   generateCssVariables,
   renderToCssString,
@@ -283,6 +284,10 @@ export function createTheme<
         const finalized = (paletteHelper.normalizeProperty
           ? paletteHelper.normalizeProperty(name, raw, normalizedArgument)
           : baseNormalized) as unknown as NormalizedPaletteValue;
+
+        validateNormalizedResponsiveRefs(finalized as any, {
+          propertyPath: `colors.${String(name)}`,
+        });
 
         return [name, finalized];
       }),

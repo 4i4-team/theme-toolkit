@@ -85,13 +85,9 @@ export const normalizePropertyValue = <
         ]),
       )
     : undefined;
-  const variantNames = normalizedVariants ? Object.keys(normalizedVariants) : [];
-  const allowedVariantSet = variantNames.length ? new Set(variantNames) : undefined;
   const responsiveContext = {
     propertyPath: options.propertyPath,
     allowedBreakpoints: options.allowedBreakpoints,
-    allowedVariants: allowedVariantSet,
-    allowedTargets: allowedVariantSet,
   } as const;
 
   return {

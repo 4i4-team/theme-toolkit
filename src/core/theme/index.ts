@@ -1,9 +1,9 @@
-import { media } from "../../subsystems/media";
+import { media } from "../../adapters/styled-components/media";
 import type {
-  MediaConfig,
   ThemeWithMedia,
   MediaGroup,
-} from "../../subsystems/media";
+} from "../../adapters/styled-components/media";
+import type { MediaConfig } from "../media";
 import type { Breakpoints, CssNode, CssRuleNode, CssVariablesNode, NormalizedPropertyValue, NormalizedRecipeGroup } from "../common";
 import {
   normalizePropertyValue,
@@ -51,7 +51,7 @@ import type {
   LayoutHelpers,
   LayoutBuilderOptions,
 } from "../../subsystems/layout";
-import type { MediaHelpers } from "../../subsystems/media";
+import type { MediaHelpers } from "../../adapters/styled-components/media";
 
 type ColorsSubsystemSource<TPaletteKey extends string, TBreakpoint extends string> =
   Record<TPaletteKey, PaletteSource> & {

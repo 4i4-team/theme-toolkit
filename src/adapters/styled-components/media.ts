@@ -1,6 +1,12 @@
 import { css } from "styled-components";
 import { Interpolation } from "styled-components/dist/types";
-import type { MediaDescriptor, MediaGroupDescriptor, MediaVariant, MediaQueryOptions } from "../../core/media";
+import type { Breakpoints } from "../../core/common";
+import {
+  buildMediaDescriptor,
+  mediaQueryString,
+  resolveMediaConfig,
+} from "../../core/media";
+import type { MediaConfig, MediaDescriptor, MediaGroupDescriptor, MediaQueryOptions, MediaVariant } from "../../core/media";
 
 type MediaTemplate = (
   styles: TemplateStringsArray,
@@ -75,4 +81,41 @@ const buildTemplate = (query: string): MediaTemplate => {
       ${css(styles, ...interpolations)}
     }
   `;
+};
+
+// SC-specific types
+export type MediaGroup = WrappedMediaGroup;
+export type MediaHelpers<T extends string> = WrappedMediaDescriptor<T>;
+
+export type ThemeWithMedia<T extends string> = {
+  readonly media: MediaHelpers<T>;
+};
+
+// SC-wrapped media factory
+export const media = <T extends string>(
+  breakpoints: Breakpoints<T>,
+  config?: MediaConfig,
+): MediaHelpers<T> => {
+  const normalizedConfig = resolveMediaConfig(config);
+  const descriptor = buildMediaDescriptor(breakpoints, options =>
+    mediaQueryString(options, normalizedConfig),
+  );
+  return wrapMediaDescriptor(descriptor) as MediaHelpers<T>;
+};
+
+export const breakpoint = ({
+  min,
+  max,
+  config,
+}: {
+  min?: number;
+  max?: number;
+  config?: MediaConfig;
+}): MediaGroup => {
+  const resolved = resolveMediaConfig(config);
+  return wrapMediaGroup({
+    min: mediaQueryString({ min }, resolved),
+    max: mediaQueryString({ max }, resolved),
+    exact: mediaQueryString({ min, max }, resolved),
+  });
 };

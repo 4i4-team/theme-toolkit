@@ -3,7 +3,7 @@ import type {
   LayoutTokens,
 } from "../../subsystems/layout";
 import type { TypographyTokens } from "../../subsystems/typography";
-import type { MediaHelpers } from "../../subsystems/media";
+import type { MediaHelpers } from "./media";
 import type { PaletteTokens, PaletteRecipeStyleMap } from "../../subsystems/colors";
 import type { CssNode, CssRuleNode, CssVariablesNode } from "../../core/common";
 

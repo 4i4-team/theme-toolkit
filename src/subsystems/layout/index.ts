@@ -1,6 +1,6 @@
 import { css } from "styled-components";
-import { mediaQuery } from "../media";
-import type { MediaConfig } from "../media";
+import { mediaQuery } from "../../core/media";
+import type { MediaConfig } from "../../core/media";
 import type { Breakpoints, ResponsiveQuery } from "../../core/common";
 import { sortBreakpointKeys } from "../../core/media";
 

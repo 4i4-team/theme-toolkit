@@ -64,3 +64,8 @@ export const mediaQueryString = (
 
   return `@media ${clauses.join(" and ")}`;
 };
+
+export const mediaQuery = (
+  options: MediaQueryOptions,
+  config?: MediaConfig,
+): string => mediaQueryString(options, resolveMediaConfig(config));

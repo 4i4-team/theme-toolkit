@@ -30,7 +30,7 @@
     "./media": {
       "require": "./dist/media.cjs.js",
       "import": "./dist/media.esm.js",
-      "types": "./dist/subsystems/media/index.d.ts"
+      "types": "./dist/adapters/styled-components/media.d.ts"
     },
     "./layout": {
       "require": "./dist/layout.cjs.js",

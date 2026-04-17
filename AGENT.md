@@ -137,6 +137,20 @@ Fields:
 
 Both `variant` and `target` are validated during normalization. Responsive overrides are resolved by the core's `expandResponsiveCssVariables` stage using four merge rules: plain override, variant swap, target override, variant swap + inline overrides.
 
+### Colors subsystem (reference implementation)
+
+The colors subsystem (`src/subsystems/colors/`) is the reference for the full pattern. Key features:
+
+- **Input forms:** primitive (`surface: "#f8f9fa"`) or extended (`{ base, text?, variants?, steps?, responsive? }`).
+- **Steps:** auto-generate color variants by progressive lightening/darkening. Default steps: `light`, `lighter`, `dark`, `darker`. Numeric steps (e.g., `[50, 100, ..., 900]`) with `baseStep` (defaults to `500`). Each step compounds from the previous, not from the base.
+- **`lightenBy` / `darkenBy`:** percentage (0–100) applied per step. Default: `20`.
+- **`algorithm: (prev, step, base) => string`:** custom step generator. `prev` = previous step's calculated color, `step` = step name, `base` = the original base color. When provided, replaces the default lighten/darken logic.
+- **User-defined variant anchors:** if a `variants` entry matches a step name, that value is used and the progression continues from it.
+- **Recipes:** reference palette tokens via dot-notation (`"primary"`, `"primary.text"`, `"primary.dark"`) — emitted as `var(--...)` in the generated CSS. Literal values pass through unchanged.
+- **Output:** `theme.colors.primary` (raw passthrough), `theme.colors.tokens`, `.variables`, `.nodes`, `.classes`, `.getClass()`, `.lighten()`, `.darken()` — all at one level.
+
+See [`docs/colors/README.md`](docs/colors/README.md) for the complete reference.
+
 ## For consumers
 
 1. Define your raw theme: `{ breakpoints, colors: { ..., recipes: { ... } }, typography?: ..., layout?: ... }`.

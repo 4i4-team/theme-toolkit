@@ -1,158 +1,64 @@
-import { DEFAULT_BREAKPOINTS, createTheme } from "@4i4/theme-toolkit";
-
-const paletteSource = {
-  primary: {
-    base: "#2251ff",
-    text: "#fff",
-    variants: {
-      dark: "#1a3fcc",
-      100: "#eef3ff",
-    },
-  },
-  accent: {
-    base: "#ff8a00",
-    text: "#1d1d1f",
-    steps: [50, 100, 200, 300, 400, 500, 600],
-    lightenBy: 8,
-    darkenBy: 12,
-  },
-  neutral: {
-    base: "#1f2533",
-    text: "#ffffff",
-  },
-} as const;
-
-const paletteRecipes = {
-  surfaces: {
-    subtle: {
-      background: "neutral.light",
-      color: "neutral.text",
-      borderColor: "neutral.dark",
-    },
-    brand: {
-      background: "primary.100",
-      color: "primary.text",
-      borderColor: "primary.dark",
-    },
-    contrast: {
-      background: "neutral.darker",
-      color: "neutral.text",
-      borderColor: "neutral.dark",
-    },
-  },
-  buttons: {
-    solid: {
-      background: "primary",
-      color: "primary.text",
-      borderColor: "primary.dark",
-      outline: "2px solid",
-      outlineColor: "primary.dark",
-    },
-    outline: {
-      background: "transparent",
-      color: "primary",
-      borderColor: "primary",
-      responsive: [{ breakpoint: "md", color: "accent", borderColor: "accent" }],
-    },
-  },
-} as const;
-
-const typographySource = {
-  families: {
-    base: "Inter, sans-serif",
-    heading: "Inter, sans-serif",
-    mono: "IBM Plex Mono, monospace",
-  },
-  weights: {
-    regular: 400,
-    medium: 500,
-    semibold: 600,
-    bold: 700,
-  },
-  lineHeights: {
-    tight: 1.2,
-    normal: 1.5,
-    relaxed: 1.8,
-  },
-  letterSpacings: {
-    tighter: "-0.02em",
-    normal: "0",
-    wide: "0.02em",
-  },
-  scale: {
-    baseFontSize: 16,
-    ratio: "major-third",
-  },
-  styles: {
-    body: {
-      md: {
-        family: "base",
-        size: "md",
-        weight: "regular",
-        lineHeight: "normal",
-        letterSpacing: "normal",
-      },
-    },
-    heading: {
-      xl: {
-        family: "heading",
-        size: "xl",
-        weight: "semibold",
-        lineHeight: "tight",
-        letterSpacing: "tighter",
-      },
-    },
-  },
-} as const;
-
-const layoutSource = {
-  spacing: {
-    none: 0,
-    default: 16,
-    compact: 8,
-    relaxed: {
-      value: 32,
-      responsive: [
-        { breakpoint: "sm", value: 20 },
-        { breakpoint: "lg", value: 40 },
-      ],
-    },
-  },
-  columns: 12,
-  containers: {
-    default: "layout",
-    fluid: {
-      mode: "fluid",
-      maxWidth: { mode: "breakpoint", value: "xl" },
-      inset: "relaxed",
-    },
-  },
-  styles: {
-    section: {
-      hero: {
-        marginY: "relaxed",
-        paddingX: "relaxed",
-      },
-    },
-    stack: {
-      relaxed: {
-        gap: "relaxed",
-      },
-    },
-  },
-} as const;
+import { createTheme } from "@4i4/theme-toolkit";
 
 export const theme = createTheme(
   {
-    breakpoints: DEFAULT_BREAKPOINTS,
-    palette: paletteSource,
-    paletteRecipes,
-    typography: typographySource,
-    layout: layoutSource,
+    breakpoints: { sm: 576, md: 768, lg: 1024, xl: 1280 },
+    colors: {
+      primary: {
+        base: "#2251ff",
+        text: "#ffffff",
+        variants: {
+          dark: { base: "#1a3fcc" },
+        },
+        responsive: [
+          { breakpoint: "sm", query: "max", base: "#1940b0" },
+        ],
+      },
+      accent: {
+        base: "#ff8a00",
+        text: "#1d1d1f",
+      },
+      neutral: {
+        base: "#1f2533",
+        text: "#ffffff",
+      },
+      recipes: {
+        surfaces: {
+          subtle: {
+            background: "neutral.light",
+            color: "neutral.text",
+          },
+          brand: {
+            background: "primary",
+            color: "primary.text",
+          },
+          contrast: {
+            background: "neutral.darker",
+            color: "neutral.text",
+          },
+        },
+        buttons: {
+          solid: {
+            background: "primary",
+            color: "primary.text",
+          },
+          outline: {
+            background: "transparent",
+            color: "primary",
+            "border-color": "primary",
+            responsive: [
+              { breakpoint: "md", query: "min", color: "accent", "border-color": "accent" },
+            ],
+          },
+          accent: {
+            background: "accent",
+            color: "accent.text",
+          },
+        },
+      },
+    },
   },
   {
-    palette: { prefix: "--brand", classPrefix: "brand-color" },
-    layout: { prefix: "--brand" },
-    typography: { prefix: "--brand", unit: "rem" },
+    palette: { prefix: "brand", classPrefix: "brand-color" },
   },
 );

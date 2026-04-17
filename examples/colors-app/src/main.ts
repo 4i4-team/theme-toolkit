@@ -47,7 +47,7 @@ const stepsSection = document.createElement("section");
 const tokens = theme.colors.tokens as Record<string, { text: string; variants: Record<string, string> }>;
 
 const colorsWithSteps = ["accent"];
-const colorsWithDefaults = ["primary", "neutral"];
+const colorsWithDefaults = ["primary", "neutral", "surface"];
 
 stepsSection.innerHTML = `
   <h2>Step progression</h2>

@@ -11,8 +11,7 @@ export interface ThemeAugmentation {
   media: MediaHelpers<string>;
   css: string;
   nodes: CssNode[];
-  colors: {
-    source?: Record<string, unknown>;
+  colors: Record<string, unknown> & {
     tokens: Record<string, PaletteTokens>;
     variables: CssVariablesNode[];
     lighten: (name: string, percent: number) => string;

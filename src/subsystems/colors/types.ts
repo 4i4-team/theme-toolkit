@@ -20,7 +20,7 @@ export type PalettePropertyExtras = {
   baseStep?: string | number;
   lightenBy?: number;
   darkenBy?: number;
-  algorithm?: (base: string, step: string) => string;
+  algorithm?: (prev: string, step: string, base: string) => string;
 };
 
 export type PalettePropertyValue = PropertyValue<string, PalettePropertyExtras>;

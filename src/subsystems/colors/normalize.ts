@@ -101,7 +101,7 @@ const generateStepVariants = (palette: NormalizedPaletteValue): Record<string, P
       continue;
     }
     if (palette.algorithm) {
-      const value = palette.algorithm(prev, step);
+      const value = palette.algorithm(prev, step, palette.base);
       result[step] = { base: value } as PaletteVariant;
       prev = value;
       continue;
@@ -118,7 +118,7 @@ const generateStepVariants = (palette: NormalizedPaletteValue): Record<string, P
       continue;
     }
     if (palette.algorithm) {
-      const value = palette.algorithm(prev, step);
+      const value = palette.algorithm(prev, step, palette.base);
       result[step] = { base: value } as PaletteVariant;
       prev = value;
       continue;

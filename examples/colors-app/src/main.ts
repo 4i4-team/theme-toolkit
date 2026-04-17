@@ -22,8 +22,9 @@ baseStyle.textContent = `
   .swatch span { opacity: 0.8; font-weight: 400; }
   .step-row { display: flex; gap: 0; }
   .step-swatch {
-    flex: 1; min-width: 60px; height: 70px; display: flex; flex-direction: column;
+    flex: 1 1 0; height: 70px; display: flex; flex-direction: column;
     align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 600; gap: 2px;
+    overflow: hidden;
   }
   .step-swatch span { opacity: 0.8; font-weight: 400; font-size: 0.6rem; }
   .step-swatch.base { outline: 3px solid #1d1d1f; outline-offset: -3px; }

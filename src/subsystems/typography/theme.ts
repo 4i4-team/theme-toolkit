@@ -1,10 +1,13 @@
 import type { SubsystemThemeHelper, SubsystemSliceContext } from "../../core/theme/helpers";
 import type { TypographySource, TypographyBuilderOptions } from "./types";
 import { buildTypographyTokens, createTypographyStyle } from "./tokens";
+import { interpretTypographyStyleVariant } from "./recipes";
 
 export const createTypographyThemeHelper = (): SubsystemThemeHelper =>
   ({
     key: "typography",
+    interpretRecipe: (variantName: string, variant: any, context: any) =>
+      interpretTypographyStyleVariant(variantName, variant, context),
     buildSlice: (context: SubsystemSliceContext) => {
       const source = context.source as TypographySource | undefined;
       if (!source) return {};

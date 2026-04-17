@@ -40,8 +40,13 @@ import type {
   PalettePropertyExtras,
   PalettePropertyValue,
 } from "../../subsystems/colors";
-import { buildTypographyTokens, buildTypographyVariableNodes, createTypographyStyle } from "../../subsystems/typography";
-import type { TypographySource, TypographyTokens, TypographyBuilderOptions } from "../../subsystems/typography";
+import {
+  buildTypographyTokens,
+  buildTypographyVariableNodes,
+  createTypographyStyle,
+  createTypographyThemeHelper,
+} from "../../subsystems/typography";
+import type { TypographySource, TypographyTokens, TypographyBuilderOptions, TypographyStyles } from "../../subsystems/typography";
 import { buildGridTokens } from "../../subsystems/layout";
 import type {
   LayoutConfig,
@@ -91,6 +96,8 @@ type TypographyComputedProperties = {
   readonly tokens?: TypographyTokens;
   readonly variables: CssVariablesNode[];
   readonly nodes: CssNode[];
+  readonly classes: Record<string, Record<string, string>>;
+  getClass: (group: string, variant: string) => string | undefined;
   style: (group: string, variant: string) => Record<string, string | number>;
 };
 
@@ -676,6 +683,65 @@ export function createTheme<
     configurable: true,
   });
 
+  const typographyHelper = createTypographyThemeHelper();
+
+  const buildTypographyRecipes = (): {
+    nodes: CssRuleNode[];
+    classes: Record<string, Record<string, string>>;
+  } => {
+    const styleSource = rawTypographySource?.styles;
+    if (!styleSource || !Object.keys(styleSource).length || !typographyHelper.interpretRecipe) {
+      return { nodes: [], classes: {} };
+    }
+
+    const allowedBreakpoints = Object.keys(clone.breakpoints) as T[];
+    const typographyOptions = options?.typography as TypographyBuilderOptions | undefined;
+    const allNodes: CssRuleNode[] = [];
+    const allClasses: Record<string, Record<string, string>> = {};
+
+    for (const [groupName, groupDef] of Object.entries(styleSource)) {
+      const groupPath = `typography.styles.${groupName}`;
+      const normalized = normalizeRecipeGroup(groupDef as any, {
+        propertyPath: groupPath,
+        allowedBreakpoints,
+      });
+
+      const resolver = createRecipeVariantResolver(
+        normalized,
+        (variantName, variant, resolve) =>
+          typographyHelper.interpretRecipe!(variantName, variant as any, {
+            tokens: cachedTypographyTokens,
+            breakpoints: clone.breakpoints,
+            resolveCssVariable: (() => "") as any,
+            resolveRecipeVariant: resolve as any,
+            groupPath,
+            options: typographyOptions,
+          }) as any,
+        { groupPath },
+      );
+
+      const interpreted = resolver.resolveAll();
+      const classPrefix = sanitizeIdentifierSegment(typographyOptions?.prefix ?? "dt-type") || "dt-type";
+      const selectorPrefix = `${classPrefix}-${sanitizeIdentifierSegment(groupName)}`;
+      const { nodes, variants } = generateRecipeCss(interpreted as any, {
+        media: cachedMediaDescriptor,
+        selectorBuilder: variantName =>
+          `.${selectorPrefix}-${sanitizeIdentifierSegment(variantName)}`,
+      });
+
+      allNodes.push(...nodes);
+      const classEntries = assignRecipeClasses(variants, { prefix: selectorPrefix });
+      allClasses[groupName] = classEntries.reduce<Record<string, string>>((acc, entry) => {
+        acc[entry.variant] = entry.className;
+        return acc;
+      }, {});
+    }
+
+    return { nodes: allNodes, classes: allClasses };
+  };
+
+  let cachedTypographyRecipes = buildTypographyRecipes();
+
   const buildTypographySlice = (): TypographyThemeSlice => {
     if (!rawTypographySource) {
       return { families: {} as any, weights: {} as any, lineHeights: {} as any, letterSpacings: {} as any, scale: {} as any, styles: {} } as TypographyThemeSlice;
@@ -692,7 +758,19 @@ export function createTheme<
       enumerable: true, configurable: true,
     });
     Object.defineProperty(slice, "nodes", {
-      get: () => { syncTypography(); return [...cachedTypographyVariables]; },
+      get: () => {
+        syncTypography();
+        return [...cachedTypographyVariables, ...cachedTypographyRecipes.nodes];
+      },
+      enumerable: true, configurable: true,
+    });
+    Object.defineProperty(slice, "classes", {
+      get: () => cachedTypographyRecipes.classes,
+      enumerable: true, configurable: true,
+    });
+    Object.defineProperty(slice, "getClass", {
+      get: () => (group: string, variant: string) =>
+        cachedTypographyRecipes.classes[group]?.[variant],
       enumerable: true, configurable: true,
     });
     Object.defineProperty(slice, "style", {
@@ -881,6 +959,7 @@ export function createTheme<
     nodes.push(...cachedPaletteRecipes.nodes);
     syncTypography();
     nodes.push(...cachedTypographyVariables);
+    nodes.push(...cachedTypographyRecipes.nodes);
     return nodes;
   };
 

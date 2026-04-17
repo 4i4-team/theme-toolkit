@@ -5,8 +5,9 @@ Design-token engine and recipe system for building framework-agnostic UI kits. T
 ## Key documents
 
 - [`docs/core/README.md`](docs/core/README.md) — complete core reference: pipelines, stages, IR types, media utility, SubsystemHelper contract, output shape.
+- [`docs/colors/README.md`](docs/colors/README.md) — colors subsystem reference: input shapes, steps, recipes, CSS variable naming, helper hooks. Reference implementation of the subsystem pattern.
 - [`README.md`](README.md) — quick start and public API overview.
-- [`examples/`](examples/) — runnable Vite + React apps: `colors-app`, `typography-app`, `layout-app`, `media-app`, `theme-app`.
+- [`examples/colors-app`](examples/colors-app/) — vanilla TS example: step swatches, recipe buttons, responsive demo, generated CSS viewer.
 
 ## Source structure
 

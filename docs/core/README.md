@@ -281,13 +281,14 @@ Framework-neutral breakpoint-to-query-string computation.
 ### `buildMediaDescriptor(breakpoints, resolveQuery)`
 
 Returns a `MediaDescriptor<TBreakpoint>` — a flattened object with:
-- **Per-breakpoint groups:** `descriptor[key].min`, `.max`, `.exact` — query strings.
-- **Callables:** `descriptor.min(key)`, `.max(key)`, `.between(from, to)`.
+- **Per-breakpoint groups:** `descriptor[key].min`, `.max`, `.exact` — pre-built query strings.
+- **Callables:** `descriptor.min(key, options?)`, `.max(key, options?)`, `.exact(key, options?)`, `.between(from, to, options?)`. When `options` includes `orientation`, the callable builds a custom query string that appends `(orientation: ...)`.
 
 ```ts
 type MediaDescriptor<T> = {
   min: (key: T, options?) => string;
   max: (key: T, options?) => string;
+  exact: (key: T, options?) => string;
   between: (from: T, to: T, options?) => string;
 } & Record<T, { min: string; max: string; exact: string }>;
 ```
@@ -297,7 +298,7 @@ Boundary rules:
 - `max` = `(max-width: <next-breakpoint - 0.02>px)` — just below the next. Empty for the last breakpoint.
 - `exact` = `min` + `max` combined. Collapses to `min` for the last breakpoint.
 
-Reserved breakpoint names (`min`, `max`, `between`) throw at construction.
+Reserved breakpoint names (`min`, `max`, `exact`, `between`) throw at construction.
 
 ### Types
 
@@ -357,7 +358,7 @@ Each subsystem exports a `create<Name>ThemeHelper()` returning an object that sa
 
 ## Responsive model
 
-Properties and recipes support `responsive: [{ breakpoint, query?, variant?, target?, ...overrides }]`.
+Properties and recipes support `responsive: [{ breakpoint, query?, variant?, target?, orientation?, ...overrides }]`.
 
 ### Fields
 
@@ -367,11 +368,13 @@ Properties and recipes support `responsive: [{ breakpoint, query?, variant?, tar
 | `query` | no | `"min"` \| `"max"` \| `"exact"` | `"exact"` |
 | `variant` | no | name of a variant in the property's `variants` map | — |
 | `target` | no | name of a variant to scope this rule to | — |
+| `orientation` | no | `"landscape"` \| `"portrait"` | — |
 
 ### Semantics
 
 - **`variant: "name"`** — at this breakpoint, swap the base flow to the named variant. The base CSS variable is reassigned to `var(--<variant>)`. Inline overrides in the same entry apply on top of the variant's values.
 - **`target: "name"`** — this responsive rule applies within the named variant's flow. The override lands on the variant's CSS variables, not the base.
+- **`orientation: "landscape" | "portrait"`** — appends `(orientation: ...)` to the media query. Combinable with any `query` type. Example: `{ breakpoint: "md", query: "exact", orientation: "landscape" }` produces `@media (min-width: 768px) and (max-width: 1023.98px) and (orientation: landscape)`.
 - `variant` and `target` cannot both be set on the same entry.
 
 ### Precedence

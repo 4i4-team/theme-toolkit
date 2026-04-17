@@ -116,20 +116,25 @@ media.md.min             // "@media (min-width: 768px)"
 media.md.max             // "@media (max-width: 1023.98px)" (next - 0.02)
 media.md.exact           // min + max combined
 media.min("md")          // same as media.md.min
+media.exact("md", { orientation: "landscape" })
+                         // "@media (min-width: 768px) and (max-width: ...) and (orientation: landscape)"
 media.between("sm","lg") // half-open upper bound
 ```
+
+Callables (`min`, `max`, `exact`, `between`) accept an optional `options` parameter with `orientation?: "landscape" | "portrait"` to compose orientation into the query.
 
 The SC-wrapped version (`subsystems/media/templates.ts`) turns these strings into tagged-template functions. That wrapping is an adapter concern, not core.
 
 ### Responsive model
 
-Properties and recipes support `responsive: [{ breakpoint, query?, variant?, target?, ...overrides }]`.
+Properties and recipes support `responsive: [{ breakpoint, query?, variant?, target?, orientation?, ...overrides }]`.
 
-Two variant-related fields with distinct semantics:
+Fields:
 - **`variant: "name"`** — at this breakpoint, swap the base flow to the named variant. The base CSS variable is reassigned to `var(--<variant>)`.
 - **`target: "name"`** — this responsive rule applies within the named variant's flow only. The override lands on the variant's CSS variables.
+- **`orientation: "landscape" | "portrait"`** — appends `(orientation: ...)` to the media query. Combinable with any `query` type.
 
-Both are validated during normalization and resolved by the core's `expandResponsiveCssVariables` stage using four merge rules: plain override, variant swap, target override, variant swap + inline overrides.
+Both `variant` and `target` are validated during normalization. Responsive overrides are resolved by the core's `expandResponsiveCssVariables` stage using four merge rules: plain override, variant swap, target override, variant swap + inline overrides.
 
 ## For consumers
 

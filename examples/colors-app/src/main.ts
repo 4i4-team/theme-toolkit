@@ -1,4 +1,4 @@
-import { theme } from "./theme";
+import { theme, rawTheme } from "./theme";
 
 const style = document.createElement("style");
 style.textContent = theme.css;
@@ -107,16 +107,11 @@ for (const name of colorsWithDefaults) {
 
 app.appendChild(stepsSection);
 
-// --- Raw input passthrough ---
+// --- Raw input ---
 const rawSection = document.createElement("section");
 rawSection.innerHTML = `
-  <h2>Raw input passthrough</h2>
-  <pre>${escapeHtml(JSON.stringify({
-    "theme.colors.primary": (theme.colors as any).primary,
-    "theme.colors.accent": (theme.colors as any).accent,
-    "theme.colors.neutral": (theme.colors as any).neutral,
-    "theme.colors.surface": (theme.colors as any).surface,
-  }, null, 2))}</pre>
+  <h2>Raw input (rawTheme.colors)</h2>
+  <pre>${escapeHtml(JSON.stringify(rawTheme.colors, null, 2))}</pre>
 `;
 app.appendChild(rawSection);
 

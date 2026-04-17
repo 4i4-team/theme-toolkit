@@ -1,82 +1,92 @@
-# @4i4/theme-toolkit
+# @theme-registry/theme-kit
 
-Utilities that power the layout, color, media, and typography pipelines used by [`@4i4/theme-registry`](https://github.com/4i4-team/theme-registry). The toolkit ships design-token builders, CSS variable emitters, styled-components mixins, and theme helpers that stay in sync with your raw data sources.
+Design-token engine and recipe system for building framework-agnostic UI kits. Turns a raw theme definition into normalized tokens, CSS custom properties, responsive variable overrides, and deterministic recipe class names.
 
-## Installation
+Part of the [`@theme-registry`](https://github.com/theme-registry) ecosystem. Works standalone or alongside `@theme-registry/toolkit` for the full extendable-UI-kit story.
+
+## Install
 
 ```bash
-npm install @4i4/theme-toolkit
-# or
-yarn add @4i4/theme-toolkit
+npm install @theme-registry/theme-kit
 ```
 
-## Quick Start
+## Quick start
 
 ```ts
-import { DEFAULT_BREAKPOINTS, createTheme } from "@4i4/theme-toolkit";
+import { createTheme } from "@theme-registry/theme-kit";
 
-const theme = createTheme(
-  {
-    breakpoints: DEFAULT_BREAKPOINTS,
-    palette: {
-      primary: { base: "#2251ff", text: "#fff" },
+const theme = createTheme({
+  breakpoints: { sm: 576, md: 768, lg: 1024, xl: 1280 },
+  colors: {
+    primary:   { base: "#d0021b", text: "#ffffff" },
+    secondary: { base: "#007bff", text: "#ffffff" },
+    recipes: {
+      solid: {
+        primary:   { background: "primary", color: "primary.text" },
+        secondary: { background: "secondary", color: "secondary.text" },
+      },
     },
-    typography: minimalTypography,
-    layout: layoutSource,
   },
-  {
-    media: { unit: "rem" },
-    typography: { unit: "rem", prefix: "--brand" },
-    layout: { prefix: "--brand", classPrefix: "brand" },
-  },
-);
-
-// theme.media.xl.min`
-// theme.layoutContainerMixin("default")
-// theme.layoutStyle("section", "hero")
+}, { palette: { prefix: "brand" } });
 ```
 
-- `theme.media` exposes breakpoint helpers (`min`, `max`, `exact`, `between`).
-- `theme.colors.tokens`, `theme.colors.css`, and `theme.colors.recipes` keep both palette tokens and ready-to-use color recipes in sync with your raw sources.
-- `theme.typography.tokens`, `theme.typography.mixin`, and `theme.typography.css` deliver semantic text helpers.
-- `theme.layout*` mirrors the new layout builder: spacing/gutter lookups, columns/container/style mixins, and a ready-to-use CSS bundle via `theme.layoutCSS`.
+Inject the generated stylesheet once at your app root:
+
+```html
+<style>${theme.css}</style>
+```
+
+Use recipe class names on any element:
+
+```html
+<button class="${theme.colors.getClass('solid', 'primary')}">Save</button>
+```
+
+## What you get
+
+```ts
+theme.css                          // full CSS string (single :root + recipes)
+theme.nodes                        // full IR (CssNode[]) for custom renderers
+
+theme.colors.primary               // raw input passthrough
+theme.colors.tokens                // { primary: { text, variants: { main, light, dark, ... } } }
+theme.colors.variables             // CssVariablesNode[] (variable IR)
+theme.colors.nodes                 // CssNode[] (variables + recipe rules)
+theme.colors.classes               // { solid: { primary: "brand-solid-primary", ... } }
+theme.colors.getClass(group, var)  // convenience lookup
+theme.colors.lighten(name, pct)    // computed color helper
+theme.colors.darken(name, pct)     // computed color helper
+theme.colors.recipes               // raw recipe definitions (passthrough)
+
+theme.media.md.min                 // "@media (min-width: 768px)"
+theme.media.md.exact               // "@media (min-width: 768px) and (max-width: 1023.98px)"
+theme.media.between("sm", "lg")    // "@media (min-width: 576px) and (max-width: 1023.98px)"
+```
+
+## Key features
+
+- **CSS variables + single `:root`** across all subsystems. No duplicate wrappers.
+- **Responsive via CSS cascade.** Property-level responsive entries emit `@media { :root { ... } }` overrides; recipes reference variables via `var(--...)` so breakpoint changes cascade automatically.
+- **Recipes produce class names**, not framework-specific output. Works with React, Angular, plain HTML, or any other consumer.
+- **IR (intermediate representation)** output alongside strings. Adapters can convert IR to styled-components RuleSets, Emotion objects, or any other format.
+- **Subsystem architecture.** Colors is the reference implementation; typography, layout, media, and effects follow the same pattern.
 
 ## Documentation
 
-Each subsystem ships its own overview, data-source contract, and helper reference:
+| Document | Audience |
+|---|---|
+| [Core reference](docs/core/README.md) | Consumers + extenders: pipelines, stages, IR, helper contract |
+| [Architecture guide](AGENT.md) | Extenders: source structure, subsystem authoring, key decisions |
 
-| Section | Docs |
-|---------|------|
-| Layout & Grid | [docs/layout/README.md](docs/layout/README.md) |
-| Palette / Colors | [docs/colors/README.md](docs/colors/README.md) |
+## Framework integration
 
-More sections (media, typography, components) will join the `docs/` folder as they are formalized.
+The core is framework-agnostic. Adapters provide ergonomic wrappers:
 
-Each subsystem also has a runnable Vite + React example under [`examples/`](examples/) (`media-app`, `layout-app`, `colors-app`, `typography-app`, `theme-app`).
+- **React + styled-components:** SC-wrapped media templates (`theme.media.md.min\`...\``), `DefaultTheme` augmentation.
+- **React (no SC):** `<style>{theme.css}</style>` + className strings.
+- **Angular:** Inject stylesheet at bootstrap, reference class names in templates.
+- **Any framework:** The output is CSS strings + class name strings. Use however your framework consumes CSS.
 
-> **TypeScript users**: Add a `styled.d.ts` (or similarly named) file in your project that imports the toolkit’s `ThemeAugmentation` and merges it into `styled-components`. For example:
->
-> ```ts
-> // styled.d.ts
-> import "styled-components";
-> import type { ThemeAugmentation } from "@4i4/theme-toolkit";
->
-> declare module "styled-components" {
->   interface DefaultTheme extends ThemeAugmentation {}
-> }
-> ```
->
-> Include this file in your `tsconfig.json` (`"include": ["src", "styled.d.ts"]`). This prevents `DefaultTheme` errors (e.g. `layoutStyleMixin` missing) without waiting for the package to augment it globally.
+## License
 
-## Subpath Imports
-
-Every subsystem can be imported via its own subpath:
-
-```ts
-import { mediaQuery } from "@4i4/theme-toolkit/media";
-import { buildPaletteTokens } from "@4i4/theme-toolkit/colors";
-import { buildTypographyTokens } from "@4i4/theme-toolkit/typography";
-import { buildGridTokens } from "@4i4/theme-toolkit/layout";
-```
-
-Refer to the docs for the complete API surface of each module.
+MIT

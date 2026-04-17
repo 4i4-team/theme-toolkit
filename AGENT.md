@@ -1,29 +1,151 @@
-# Architecture Agent Notes
+# @theme-registry/theme-kit — Architecture Guide
 
-This toolkit exposes theme subsystems (layout, typography, media, colors, effects, etc.) that all follow the same normalization/token/CSS pipeline. Use this guide both when **consuming** the package and when **extending** it with new subsystems.
+Design-token engine and recipe system for building framework-agnostic UI kits. This guide covers the internal architecture for both **consumers** of the package and **developers extending** it with new subsystems.
 
 ## Key documents
-- `.notes/reference/architecture.md` – latest architecture spec (keep in sync with code).
-- `.notes/reference/raw-theme-example.js` – sample raw theme exercising every feature; treat as the source of truth when prose docs disagree.
-- `.notes/reference/subsystem-pipeline.md` – worked example of one subsystem plugged into `createTheme`.
-- `.notes/reference/architecture-notes.md` – canonical requirements and design rationale for properties, variants, responsive rules, recipes, breakpoints, and `createTheme` behavior.
-- `.notes/context.md` – current backlog and rollout status for shared utilities and subsystem retrofits.
-- `docs/common/README.md` – detailed guide to every common helper.
 
-## Using the toolkit (package consumers)
-1. Author a raw theme with `{ breakpoints, layout?, typography?, ... }` following the example file.
-2. Call `createTheme(rawTheme, options)` (subsystem options control units + CSS prefixes).
-3. `ThemeProvider` receives the returned theme object; access subsystem helpers via getters (e.g., `theme.media`, `theme.layoutContainer('lg')`).
-4. Use generated CSS variables (`theme.colors.css`, `theme.typography.css`, etc.) to bootstrap global styles.
-5. When overriding theme slices in nested providers, keep shapes aligned with the shared `PropertyValue` contract so getters react automatically.
+- [`docs/core/README.md`](docs/core/README.md) — complete core reference: pipelines, stages, IR types, media utility, SubsystemHelper contract, output shape.
+- [`README.md`](README.md) — quick start and public API overview.
+- [`examples/`](examples/) — runnable Vite + React apps: `colors-app`, `typography-app`, `layout-app`, `media-app`, `theme-app`.
 
-## Extending the toolkit (subsystem developers / agents)
-1. Define raw source types in terms of `PropertyValue` / `RecipeVariantDefinition` from `src/common/types.ts`.
-2. Normalize those inputs with `normalizePropertyValue` (or future convenience wrappers) and feed the result to your token builder.
-3. Expose token → CSS variable generation via the shared helpers (`generateTokens`, `generateCssVariables`, `renderAllCssVariables` once implemented).
-4. Recipes should follow the shared contracts: interpret raw recipes → normalized instructions (`interpretRecipe`), serialize via `generateRecipeCss`, and assign classes deterministically (`assignRecipeClasses`).
-5. Attach all subsystem utilities to the theme via getters that leverage `createDependencyCache` so nested overrides stay in sync.
-6. Respect global breakpoints: responsive entries must reference keys from `theme.breakpoints`; use `target` + `variant` to describe merge order.
-7. Keep documentation (`docs/<subsystem>`) aligned with the common contract—link back to `docs/common/README.md` for shared behavior.
+## Source structure
 
-Adhering to these guidelines keeps every subsystem interoperable and makes it easier for future contributors (human or automated) to extend the toolkit.
+```
+src/
+  core/                    framework-neutral pipeline + orchestrator
+    common/                shared stage utilities (normalize, tokenize, CSS vars,
+                           responsive expansion, IR types, renderer, recipes,
+                           recipe resolver, cache, getters)
+    media/                 plain MediaDescriptor (breakpoint → query string)
+    theme/                 createTheme + SubsystemHelper contract types
+  subsystems/              domain subsystems (plug into the core pipeline)
+    colors/                reference implementation (fully ported to new contract)
+    typography/            legacy — not yet ported
+    layout/                legacy — not yet ported
+    media/                 SC-wrapped media templates (legacy; Phase-2 → adapters/)
+    effects/               types + builder, not yet integrated
+  adapters/                framework-specific wrappers
+    styled-components/     SC DefaultTheme augmentation
+```
+
+**Dependency rule:** subsystems import from core; adapters import from either; nothing imports upward. `core/common` and `core/media` have zero framework imports.
+
+## Architecture overview
+
+### Two pipelines
+
+Every subsystem drives its data through the same two-pipeline model:
+
+**Property pipeline** (per property entry):
+```
+raw value → normalizePropertyValue → [normalizeProperty hook]
+          → generateTokens         → [tokenizeProperty hook]
+          → generateCssVariables    → [mapCssVariables hook]
+          → expandResponsiveCssVariables → [transformResponsiveCss hook]
+```
+Output: `CssVariablesNode[]` (IR).
+
+**Recipe pipeline** (per recipe group):
+```
+raw recipes → normalizeRecipeGroup → [normalizeRecipe hook]
+            → createRecipeVariantResolver + interpretRecipe hook (per variant)
+            → generateRecipeCss (→ CssRuleNode[])
+            → assignRecipeClasses
+```
+Output: `CssRuleNode[]` + class name map.
+
+### IR (intermediate representation)
+
+Core stages produce `CssNode[]` — typed JS objects, not strings. Two node kinds:
+- `CssVariablesNode` — `{ kind: "variables", selector, media?, variables }`.
+- `CssRuleNode` — `{ kind: "rule", selector, media?, declarations }`.
+
+`renderToCssString(nodes)` converts IR to a CSS string, merging adjacent variable nodes with the same selector+media into one block (single `:root`).
+
+### Output shape
+
+Each subsystem's theme slice is the **raw input enhanced with computed getters**:
+
+```
+theme[key] = {
+  <raw properties>         passthrough from rawTheme[key]
+  recipes: { ... }         raw recipe groups (passthrough)
+  get tokens()             computed from property pipeline
+  get variables()          CssVariablesNode[] (property variables only)
+  get nodes()              CssNode[] (all: variables + recipe rules)
+  get classes()            recipe class map
+  get styles()             recipe interpreted styles
+  get getClass()           fn(group, variant) → className
+  get <extras>()           subsystem-specific (e.g., lighten, darken for colors)
+}
+```
+
+Top level:
+```
+theme.css                  rendered CSS string (all subsystems, single :root)
+theme.nodes                CssNode[] (all subsystems)
+theme.media                media descriptor (breakpoint helpers)
+```
+
+### SubsystemHelper contract
+
+Each subsystem exports a `createXThemeHelper()` that returns a helper object. The helper declares hooks the core pipeline invokes:
+
+| Hook | Pipeline | Required | Purpose |
+|---|---|---|---|
+| `normalizeProperty` | property | no | post-process normalized property (inject defaults, validate extras) |
+| `tokenizeProperty` | property | no | extend/replace the base token |
+| `mapCssVariables` | property | no | replace the default CSS variable mapper (custom naming) |
+| `transformResponsiveCss` | property | no | post-process responsive variable IR nodes |
+| `normalizeRecipe` | recipe | no | post-process normalized recipe group |
+| `interpretRecipe` | recipe | yes* | per-variant interpreter (domain props → flat CSS declarations) |
+| `mapRecipeCss` | recipe | no | post-process recipe CSS output |
+| `buildSlice` | slice | no | return subsystem-specific utilities (e.g., lighten/darken) |
+| `buildGlobals` | slice | no | attach utilities to theme root (escape hatch) |
+| `dependsOn` | ordering | no | declare subsystem dependencies (for composition) |
+
+*Required when the subsystem has recipes.
+
+### Media utility
+
+`core/media/` provides framework-neutral breakpoint logic:
+
+```ts
+const media = buildMediaDescriptor(breakpoints, queryResolver);
+media.md.min             // "@media (min-width: 768px)"
+media.md.max             // "@media (max-width: 1023.98px)" (next - 0.02)
+media.md.exact           // min + max combined
+media.min("md")          // same as media.md.min
+media.between("sm","lg") // half-open upper bound
+```
+
+The SC-wrapped version (`subsystems/media/templates.ts`) turns these strings into tagged-template functions. That wrapping is an adapter concern, not core.
+
+### Responsive model
+
+Properties and recipes support `responsive: [{ breakpoint, query?, variant?, target?, ...overrides }]`.
+
+Two variant-related fields with distinct semantics:
+- **`variant: "name"`** — at this breakpoint, swap the base flow to the named variant. The base CSS variable is reassigned to `var(--<variant>)`.
+- **`target: "name"`** — this responsive rule applies within the named variant's flow only. The override lands on the variant's CSS variables.
+
+Both are validated during normalization and resolved by the core's `expandResponsiveCssVariables` stage using four merge rules: plain override, variant swap, target override, variant swap + inline overrides.
+
+## For consumers
+
+1. Define your raw theme: `{ breakpoints, colors: { ..., recipes: { ... } }, typography?: ..., layout?: ... }`.
+2. Call `createTheme(rawTheme, options)`. Options control CSS variable prefixes, units, class prefixes per subsystem.
+3. Inject `theme.css` as a global stylesheet (one `<style>` tag, or a `.css` file, or however your framework works).
+4. Reference recipe class names via `theme.colors.getClass("group", "variant")` or the `theme.colors.classes` map.
+5. Access raw properties at their original path: `theme.colors.primary.base`, `theme.colors.primary.text`.
+6. Access computed data via getters: `theme.colors.tokens`, `theme.colors.variables`, `theme.colors.nodes`.
+
+## For subsystem developers
+
+1. Create a folder under `src/subsystems/<name>/` with the standard file contract: `index.ts`, `types.ts`, `utils.ts`, `theme.ts`, `tokens.ts`, `recipes.ts` (plus optional `normalize.ts`, `variables.ts`, `constants.ts`).
+2. Define your raw source types using `PropertyValue<TValue, TExtra>` from `core/common/types.ts`.
+3. Implement a `create<Name>ThemeHelper()` in `theme.ts` that returns the hooks your subsystem needs.
+4. At minimum: `key` (the subsystem's raw-theme key), plus `interpretRecipe` if you have recipes.
+5. The core pipeline handles normalization, tokenization, CSS variable generation, responsive expansion, recipe CSS serialization, and class assignment. Your hooks post-process at each stage.
+6. Keep framework-specific code (SC templates, Angular DI, etc.) in `src/adapters/`, never in the subsystem.
+7. Refer to `src/subsystems/colors/` as the reference implementation — it exercises every hook and the full output shape.

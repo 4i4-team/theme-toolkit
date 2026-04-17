@@ -7,36 +7,23 @@ export const theme = createTheme(
       primary: {
         base: "#2251ff",
         text: "#ffffff",
-        variants: {
-          dark: { base: "#1a3fcc" },
-        },
         responsive: [
           { breakpoint: "sm", query: "max", base: "#1940b0" },
         ],
       },
       accent: {
-        base: "#ff8a00",
+        base: "#ff6600",
         text: "#1d1d1f",
+        steps: [50, 100, 200, 300, 400, 500, 600, 700, 800, 900],
+        baseStep: 500,
+        lightenBy: 8,
+        darkenBy: 12,
       },
       neutral: {
-        base: "#1f2533",
+        base: "#6c757d",
         text: "#ffffff",
       },
       recipes: {
-        surfaces: {
-          subtle: {
-            background: "neutral.light",
-            color: "neutral.text",
-          },
-          brand: {
-            background: "primary",
-            color: "primary.text",
-          },
-          contrast: {
-            background: "neutral.darker",
-            color: "neutral.text",
-          },
-        },
         buttons: {
           solid: {
             background: "primary",

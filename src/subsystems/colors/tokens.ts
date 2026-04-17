@@ -11,52 +11,108 @@ import {
 import type { ResolveCssVariableName } from "../../core/common";
 
 const DEFAULT_STEPS = ["light", "lighter", "dark", "darker"];
+const DEFAULT_LIGHTEN_BY = 20;
+const DEFAULT_DARKEN_BY = 20;
+
+const NAMED_LIGHTER_ORDER = ["light", "lighter"];
+const NAMED_DARKER_ORDER = ["dark", "darker"];
 
 const ensureVariantSteps = (palette: NormalizedPaletteValue): string[] => {
   if (palette.steps && palette.steps.length) {
     return palette.steps.map(step => step.toString());
   }
-
   return DEFAULT_STEPS;
+};
+
+const classifySteps = (
+  steps: string[],
+  baseStep?: string,
+): { lighterSteps: string[]; darkerSteps: string[]; baseStepName: string | undefined } => {
+  const allNumeric = steps.every(s => !isNaN(Number(s)));
+
+  if (allNumeric) {
+    const sorted = [...steps].sort((a, b) => Number(a) - Number(b));
+    const resolvedBase = baseStep?.toString();
+    let baseIdx = resolvedBase ? sorted.indexOf(resolvedBase) : -1;
+
+    if (baseIdx < 0) {
+      baseIdx = sorted.indexOf("500");
+    }
+    if (baseIdx < 0) {
+      baseIdx = Math.floor(sorted.length / 2);
+    }
+
+    const lighterSteps = sorted.slice(0, baseIdx).reverse();
+    const darkerSteps = sorted.slice(baseIdx + 1);
+    return { lighterSteps, darkerSteps, baseStepName: sorted[baseIdx] };
+  }
+
+  const lighterSet = new Set(NAMED_LIGHTER_ORDER);
+  const darkerSet = new Set(NAMED_DARKER_ORDER);
+
+  const lighterSteps = steps
+    .filter(s => lighterSet.has(s))
+    .sort((a, b) => NAMED_LIGHTER_ORDER.indexOf(a) - NAMED_LIGHTER_ORDER.indexOf(b));
+
+  const darkerSteps = steps
+    .filter(s => darkerSet.has(s))
+    .sort((a, b) => NAMED_DARKER_ORDER.indexOf(a) - NAMED_DARKER_ORDER.indexOf(b));
+
+  const unknown = steps.filter(s => !lighterSet.has(s) && !darkerSet.has(s));
+  darkerSteps.push(...unknown);
+
+  return { lighterSteps, darkerSteps, baseStepName: undefined };
 };
 
 const buildPaletteVariantMap = (palette: NormalizedPaletteValue): PaletteVariantMap => {
   const steps = ensureVariantSteps(palette);
-  const variants: PaletteVariantMap = {
-    main: palette.base,
-    ...Object.fromEntries(
-      Object.entries(palette.variants ?? {}).map(([name, definition]) => [name, definition.base]),
-    ),
-  };
+  const existingVariants = Object.fromEntries(
+    Object.entries(palette.variants ?? {}).map(([name, def]) => [name, def.base]),
+  );
+  const variants: PaletteVariantMap = { main: palette.base, ...existingVariants };
 
-  for (const step of steps) {
+  const { lighterSteps, darkerSteps, baseStepName } = classifySteps(
+    steps,
+    palette.baseStep?.toString(),
+  );
+
+  if (baseStepName && !variants[baseStepName]) {
+    variants[baseStepName] = palette.base;
+  }
+
+  const lightenAmount = palette.lightenBy ?? DEFAULT_LIGHTEN_BY;
+  const darkenAmount = palette.darkenBy ?? DEFAULT_DARKEN_BY;
+
+  let prev = palette.base;
+  for (const step of lighterSteps) {
     if (variants[step]) {
+      prev = variants[step];
       continue;
     }
-
     if (palette.algorithm) {
-      variants[step] = palette.algorithm(palette.base, step);
+      variants[step] = palette.algorithm(prev, step);
+      prev = variants[step];
       continue;
     }
+    const result = lighten(prev, lightenAmount);
+    variants[step] = result;
+    prev = result;
+  }
 
-    switch (step) {
-      case "light":
-        variants[step] = lighten(palette.base, palette.lightenBy ?? 30);
-        break;
-      case "lighter":
-        variants[step] = lighten(palette.base, palette.lightenBy ?? 60);
-        break;
-      case "dark":
-        variants[step] = darken(palette.base, palette.darkenBy ?? 30);
-        break;
-      case "darker":
-        variants[step] = darken(palette.base, palette.darkenBy ?? 60);
-        break;
-      default:
-        variants[step] = palette.lightenBy
-          ? lighten(palette.base, palette.lightenBy)
-          : darken(palette.base, palette.darkenBy ?? 30);
+  prev = palette.base;
+  for (const step of darkerSteps) {
+    if (variants[step]) {
+      prev = variants[step];
+      continue;
     }
+    if (palette.algorithm) {
+      variants[step] = palette.algorithm(prev, step);
+      prev = variants[step];
+      continue;
+    }
+    const result = darken(prev, darkenAmount);
+    variants[step] = result;
+    prev = result;
   }
 
   return variants;

@@ -17,6 +17,7 @@ export type PaletteVariantMap = Record<string, string>;
 export type PalettePropertyExtras = {
   text: string;
   steps?: Array<string | number>;
+  baseStep?: string | number;
   lightenBy?: number;
   darkenBy?: number;
   algorithm?: (base: string, step: string) => string;

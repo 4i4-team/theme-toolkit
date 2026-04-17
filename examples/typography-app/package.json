@@ -1,5 +1,5 @@
 {
-  "name": "theme-toolkit-typography",
+  "name": "theme-kit-typography-example",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -9,17 +9,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@4i4/theme-toolkit": "file:../..",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "styled-components": "^6.4.0"
+    "@4i4/theme-toolkit": "file:../.."
   },
   "devDependencies": {
-    "@types/react": "^18.2.43",
-    "@types/react-dom": "^18.2.17",
     "typescript": "^5.4.2",
-    "vite": "^5.2.0",
-    "@vitejs/plugin-react": "^4.2.1",
-    "@types/styled-components": "^5.1.33"
+    "vite": "^5.2.0"
   }
 }

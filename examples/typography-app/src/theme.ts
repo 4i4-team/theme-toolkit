@@ -1,104 +1,62 @@
-import { DEFAULT_BREAKPOINTS, createTheme } from "@4i4/theme-toolkit";
+import { createTheme } from "@4i4/theme-toolkit";
 
-const paletteSource = {
-  primary: { base: "#2251ff", text: "#fff" },
-  accent: { base: "#ff8a00", text: "#1d1d1f" },
-} as const;
-
-const typographySource = {
-  families: {
-    base: "Inter, sans-serif",
-    heading: "Inter, sans-serif",
-    mono: "IBM Plex Mono, monospace",
-  },
-  weights: {
-    regular: 400,
-    medium: 500,
-    semibold: 600,
-    bold: 700,
-  },
-  lineHeights: {
-    tight: 1.2,
-    normal: 1.5,
-    relaxed: 1.8,
-  },
-  letterSpacings: {
-    tighter: "-0.02em",
-    normal: "0",
-    wide: "0.02em",
-  },
-  scale: {
-    baseFontSize: 16,
-    ratio: "major-third",
-  },
-  styles: {
-    body: {
-      md: {
-        family: "base",
-        size: "md",
-        weight: "regular",
-        lineHeight: "normal",
-        letterSpacing: "normal",
+export const rawTheme = {
+  breakpoints: { sm: 576, md: 768, lg: 1024, xl: 1280 },
+  typography: {
+    families: {
+      base: "Inter, sans-serif",
+      heading: "Inter, sans-serif",
+      mono: "IBM Plex Mono, monospace",
+    },
+    weights: {
+      regular: 400,
+      medium: 500,
+      semibold: 600,
+      bold: 700,
+    },
+    lineHeights: {
+      tight: 1.2,
+      normal: 1.5,
+      relaxed: 1.8,
+    },
+    letterSpacings: {
+      tighter: "-0.02em",
+      normal: "0",
+      wide: "0.02em",
+    },
+    scale: {
+      baseFontSize: 16,
+      ratio: "major-third" as const,
+    },
+    styles: {
+      body: {
+        sm: { family: "base", size: "sm", weight: "regular", lineHeight: "relaxed", letterSpacing: "normal" },
+        md: { family: "base", size: "md", weight: "regular", lineHeight: "normal", letterSpacing: "normal" },
       },
-    },
-    heading: {
-      xl: {
-        family: "heading",
-        size: "xl",
-        weight: "semibold",
-        lineHeight: "tight",
-        letterSpacing: "tighter",
+      heading: {
+        lg: { family: "heading", size: "lg", weight: "semibold", lineHeight: "tight", letterSpacing: "tighter" },
+        xl: {
+          family: "heading", size: "xl", weight: "semibold", lineHeight: "tight", letterSpacing: "tighter",
+          responsive: [
+            { breakpoint: "lg", size: "2xl", weight: "bold" },
+          ],
+        },
+        "2xl": {
+          family: "heading", size: "2xl", weight: "bold", lineHeight: "tight", letterSpacing: "tighter",
+          responsive: [
+            { breakpoint: "lg", size: "3xl" },
+          ],
+        },
       },
-    },
-  },
-} as const;
-
-const layoutSource = {
-  spacing: {
-    none: 0,
-    default: 16,
-    compact: 8,
-    relaxed: {
-      value: 32,
-      responsive: [
-        { breakpoint: "sm", value: 20 },
-        { breakpoint: "lg", value: 40 },
-      ],
-    },
-  },
-  columns: 12,
-  containers: {
-    default: "layout",
-    fluid: {
-      mode: "fluid",
-      maxWidth: { mode: "breakpoint", value: "xl" },
-      inset: "relaxed",
-    },
-  },
-  styles: {
-    section: {
-      hero: {
-        marginY: "relaxed",
-        paddingX: "relaxed",
-      },
-    },
-    stack: {
-      relaxed: {
-        gap: "relaxed",
+      code: {
+        md: { family: "mono", size: "sm", weight: "regular", lineHeight: "normal", letterSpacing: "wide" },
       },
     },
   },
-} as const;
+};
 
-export const theme = createTheme(
-  {
-    breakpoints: DEFAULT_BREAKPOINTS,
-    palette: paletteSource,
-    typography: typographySource,
-    layout: layoutSource,
-  },
-  {
-    layout: { prefix: "--brand" },
-    typography: { prefix: "--brand", unit: "rem" },
-  },
-);
+export const options = {
+  typography: { unit: "rem" as const, prefix: "brand" },
+};
+
+export const theme = createTheme(rawTheme, options);

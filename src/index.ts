@@ -12,3 +12,4 @@ export * from "./subsystems/typography";
 export * from "./subsystems/effects";
 export * from "./subsystems/components";
 export * from "./adapters/styled-components/types";
+export * from "./dtcg";

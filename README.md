@@ -88,6 +88,7 @@ theme.components.classes           // { buttons: { primary: { classes: [...], cl
 | [Effects subsystem](docs/effects/README.md) | Consumers: radius, shadow, blur, zIndex, opacity, outline, borderWidth, transitions |
 | [Components subsystem](docs/components/README.md) | Consumers: cross-subsystem recipe composition, delta classes |
 | [SC adapter](docs/adapters/styled-components/README.md) | Consumers: media templates, typographyMixin, DefaultTheme augmentation |
+| [DTCG import/export](docs/dtcg/README.md) | Consumers: Figma workflow, fromDTCG, toDTCG, reference resolution |
 | [Architecture guide](AGENT.md) | Extenders: source structure, subsystem authoring, key decisions |
 
 ## Example apps

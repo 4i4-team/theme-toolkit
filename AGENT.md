@@ -11,6 +11,7 @@ Design-token engine and recipe system for building framework-agnostic UI kits. T
 - [`docs/effects/README.md`](docs/effects/README.md) — effects subsystem reference: radius, shadow, blur, zIndex, opacity, outline, borderWidth, transitions, recipes.
 - [`docs/components/README.md`](docs/components/README.md) — components (composition) subsystem reference: cross-subsystem recipe references, delta classes, resolved class names.
 - [`docs/adapters/styled-components/README.md`](docs/adapters/styled-components/README.md) — SC adapter reference: media templates, typographyMixin, ThemeAugmentation, three integration patterns.
+- [`docs/dtcg/README.md`](docs/dtcg/README.md) — DTCG import/export: fromDTCG, toDTCG, Figma workflow, reference resolution, limitations.
 - [`README.md`](README.md) — quick start and public API overview.
 - [`examples/colors-app`](examples/colors-app/) — vanilla TS colors example.
 - [`examples/typography-app`](examples/typography-app/) — vanilla TS typography example.
@@ -39,6 +40,7 @@ src/
     components/            composition subsystem (cross-subsystem recipe references)
   adapters/                framework-specific wrappers (opt-in via adapter option)
     styled-components/     SC adapter, media templates, typography mixin
+  dtcg/                    W3C DTCG import/export (fromDTCG, toDTCG)
 ```
 
 **Dependency rule:** subsystems import from core; adapters import from either; nothing imports upward. `core/common` and `core/media` have zero framework imports.

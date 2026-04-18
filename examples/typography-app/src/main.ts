@@ -65,14 +65,15 @@ app.appendChild(rawSection);
 
 // --- Scale ---
 const scaleSection = document.createElement("section");
-const tokens = theme.typography.tokens;
-const scaleEntries = tokens ? Object.entries(tokens.scale) : [];
+const tokens = theme.typography.tokens as Record<string, { base: string | number; variants: Record<string, string | number> }>;
+const fontSizeVariants = tokens?.fontSize?.variants ?? {};
+const scaleEntries = Object.entries(fontSizeVariants);
 scaleSection.innerHTML = `
-  <h2>Type scale (${rawTheme.typography.scale.ratio}, base ${rawTheme.typography.scale.baseFontSize}px → rem)</h2>
+  <h2>Font size scale (${(rawTheme.typography.fontSize as any).ratio ?? "custom"}, base ${(rawTheme.typography.fontSize as any).base}px)</h2>
   <div class="scale-row">
     ${scaleEntries.map(([key, val]) =>
-      `<div class="scale-swatch" style="font-size:${val.value}${val.unit}">
-        ${key}<span>${val.value}${val.unit}</span>
+      `<div class="scale-swatch" style="font-size:${val}px">
+        ${key}<span>${val}</span>
       </div>`
     ).join("")}
   </div>

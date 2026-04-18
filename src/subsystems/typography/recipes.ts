@@ -6,51 +6,34 @@ import type {
   RecipeStyleBlock,
 } from "../../core/common";
 import type { RecipeInterpretContext } from "../../core/theme/helpers";
-
-type TypographyStyleProps = {
-  family?: string;
-  size?: string;
-  weight?: string;
-  lineHeight?: string;
-  letterSpacing?: string;
-};
+import { createTypographyCssVariableResolver } from "./tokens";
 
 const RESERVED_KEYS = new Set(["breakpoint", "query", "variant", "target", "orientation"]);
 
-const PROPERTY_MAP: Record<string, string> = {
-  family: "font-family",
-  size: "font-size",
-  weight: "font-weight",
+const PROPERTY_CSS_MAP: Record<string, string> = {
+  fontFamily: "font-family",
+  fontSize: "font-size",
+  fontWeight: "font-weight",
   lineHeight: "line-height",
   letterSpacing: "letter-spacing",
+  fontStyle: "font-style",
+  textTransform: "text-transform",
+  textDecoration: "text-decoration",
+  textAlign: "text-align",
 };
 
-const VARIABLE_CATEGORY_MAP: Record<string, string> = {
-  family: "font-family",
-  size: "font-size",
-  weight: "font-weight",
-  lineHeight: "line-height",
-  letterSpacing: "letter-spacing",
-};
-
-export const createTypographyCssVariableResolver = (prefix: string) => {
-  const normalized = normalizeCssVariablePrefix(prefix);
-  return (category: string, tokenName: string): string =>
-    `${normalized}-${VARIABLE_CATEGORY_MAP[category] ?? category}--${tokenName}`;
-};
-
-export const interpretTypographyStyleVariant = (
+export const interpretTypographyRecipeVariant = (
   variantName: string,
-  variant: NormalizedRecipeVariant<TypographyStyleProps, string>,
+  variant: NormalizedRecipeVariant<Record<string, string>, string>,
   context: RecipeInterpretContext<string>,
 ): InterpretedRecipeVariant<string> => {
   const prefix = (context.options as { prefix?: string } | undefined)?.prefix ?? "";
   const resolve = createTypographyCssVariableResolver(prefix);
 
-  const base = resolveStyleProps(variant.base, resolve);
+  const base = resolveRecipeProps(variant.base, resolve);
 
   const responsive = variant.responsive.map(entry => {
-    const overrides = resolveStyleProps(entry as TypographyStyleProps, resolve, true);
+    const overrides = resolveRecipeProps(entry as Record<string, string>, resolve, true);
     return {
       ...overrides,
       breakpoint: entry.breakpoint,
@@ -64,19 +47,17 @@ export const interpretTypographyStyleVariant = (
   return { base, responsive };
 };
 
-const resolveStyleProps = (
-  props: TypographyStyleProps,
-  resolve: (category: string, tokenName: string) => string,
+const resolveRecipeProps = (
+  props: Record<string, string>,
+  resolve: (propertyKey: string, variant: string) => string,
   skipReserved = false,
 ): RecipeStyleBlock => {
   const styles: RecipeStyleBlock = {};
 
   for (const [key, value] of Object.entries(props)) {
     if (!value || (skipReserved && RESERVED_KEYS.has(key))) continue;
-
-    const cssProperty = PROPERTY_MAP[key];
+    const cssProperty = PROPERTY_CSS_MAP[key];
     if (!cssProperty) continue;
-
     styles[cssProperty] = `var(${resolve(key, value)})`;
   }
 

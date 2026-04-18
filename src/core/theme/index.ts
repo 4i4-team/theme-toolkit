@@ -41,12 +41,11 @@ import type {
   PalettePropertyValue,
 } from "../../subsystems/colors";
 import {
-  buildTypographyTokens,
-  buildTypographyVariableNodes,
-  createTypographyStyle,
+  createTypographyCssVariableResolver,
   createTypographyThemeHelper,
+  mapTypographyCssVariables,
 } from "../../subsystems/typography";
-import type { TypographySource, TypographyTokens, TypographyBuilderOptions, TypographyStyles } from "../../subsystems/typography";
+import type { TypographySource, TypographyTokens, TypographyBuilderOptions, TypographyRecipeSource } from "../../subsystems/typography";
 import { buildGridTokens } from "../../subsystems/layout";
 import type {
   LayoutConfig,
@@ -93,15 +92,15 @@ type ThemeWithAggregateCss = {
 };
 
 type TypographyComputedProperties = {
-  readonly tokens?: TypographyTokens;
+  readonly tokens: TypographyTokens;
   readonly variables: CssVariablesNode[];
   readonly nodes: CssNode[];
   readonly classes: Record<string, Record<string, string>>;
   getClass: (group: string, variant: string) => string | undefined;
-  style: (group: string, variant: string) => Record<string, string | number>;
+  style: (group: string, variant: string) => Record<string, string>;
 };
 
-type TypographyThemeSlice = TypographySource & TypographyComputedProperties;
+type TypographyThemeSlice = Record<string, unknown> & TypographyComputedProperties;
 
 type ThemeWithTypography = {
   typography: TypographyThemeSlice;
@@ -521,23 +520,127 @@ export function createTheme<
     }
     return cachedPaletteVariables;
   };
+  const typographyHelper = createTypographyThemeHelper();
+  const typographyOptions = options?.typography as TypographyBuilderOptions | undefined;
   let rawTypographySource = clone.typography as TypographySource | undefined;
   let cachedTypographySource = rawTypographySource;
-  let cachedTypographyTokens: TypographyTokens | undefined = rawTypographySource
-    ? buildTypographyTokens(rawTypographySource, { unit: (options?.typography as TypographyBuilderOptions)?.unit ?? "px" })
-    : undefined;
-  let cachedTypographyVariables: CssVariablesNode[] = cachedTypographyTokens
-    ? buildTypographyVariableNodes(cachedTypographyTokens, (options?.typography as TypographyBuilderOptions)?.prefix)
-    : [];
+
+  const extractTypographyProperties = (
+    source: TypographySource | undefined,
+  ): Record<string, unknown> | undefined => {
+    if (!source) return undefined;
+    const { recipes: _recipes, ...properties } = source;
+    return Object.keys(properties).length ? properties : undefined;
+  };
+
+  const normalizeTypographyCollection = (
+    source: TypographySource | undefined,
+  ): Record<string, NormalizedPropertyValue<unknown>> => {
+    if (!source) return {};
+    const properties = extractTypographyProperties(source);
+    if (!properties) return {};
+    const allowedBreakpoints = Object.keys(clone.breakpoints) as string[];
+    const result: Record<string, NormalizedPropertyValue<unknown>> = {};
+
+    for (const [name, raw] of Object.entries(properties)) {
+      const base = normalizePropertyValue(raw as any, {
+        propertyPath: `typography.${name}`,
+        allowedBreakpoints,
+      });
+      const finalized = typographyHelper.normalizeProperty
+        ? typographyHelper.normalizeProperty(name, raw, base as any)
+        : base;
+      validateNormalizedResponsiveRefs(finalized as any, { propertyPath: `typography.${name}` });
+      result[name] = finalized as NormalizedPropertyValue<unknown>;
+    }
+    return result;
+  };
+
+  let cachedNormalizedTypography = normalizeTypographyCollection(rawTypographySource);
+  let cachedTypographyTokens: TypographyTokens = generateTokens(cachedNormalizedTypography, ({ name, value }) => {
+    const baseToken = { base: (value as any).base, variants: {} };
+    return typographyHelper.tokenizeProperty
+      ? typographyHelper.tokenizeProperty(name, value as any, baseToken) as any
+      : baseToken;
+  });
+  const typographyPrefix = normalizeCssVariablePrefix(typographyOptions?.prefix);
+  let cachedTypographyVariables: CssVariablesNode[] = (() => {
+    const variables = mapTypographyCssVariables(cachedTypographyTokens, typographyPrefix, {
+      unit: typographyOptions?.unit,
+      baseFontSize: (rawTypographySource?.fontSize as any)?.base,
+    });
+    const baseNode: CssVariablesNode[] = Object.keys(variables).length
+      ? [{ kind: "variables" as const, selector: ":root", variables }]
+      : [];
+    const responsiveNodes = expandResponsiveCssVariables(cachedNormalizedTypography as any, {
+      resolveCssVariable: createTypographyCssVariableResolver(typographyOptions?.prefix ?? ""),
+      media: cachedMediaDescriptor,
+    });
+    return [...baseNode, ...responsiveNodes];
+  })();
+
+  let cachedTypographyRecipes: { nodes: CssRuleNode[]; classes: Record<string, Record<string, string>> } = (() => {
+    const recipeSource = rawTypographySource?.recipes;
+    if (!recipeSource || !Object.keys(recipeSource).length || !typographyHelper.interpretRecipe) {
+      return { nodes: [], classes: {} };
+    }
+    const allowedBreakpoints = Object.keys(clone.breakpoints) as T[];
+    const allNodes: CssRuleNode[] = [];
+    const allClasses: Record<string, Record<string, string>> = {};
+    for (const [groupName, groupDef] of Object.entries(recipeSource)) {
+      const groupPath = `typography.recipes.${groupName}`;
+      const normalized = normalizeRecipeGroup(groupDef as any, { propertyPath: groupPath, allowedBreakpoints });
+      const resolver = createRecipeVariantResolver(
+        normalized,
+        (variantName, variant, resolve) =>
+          typographyHelper.interpretRecipe!(variantName, variant as any, {
+            tokens: cachedTypographyTokens,
+            breakpoints: clone.breakpoints,
+            resolveCssVariable: createTypographyCssVariableResolver(typographyOptions?.prefix ?? ""),
+            resolveRecipeVariant: resolve as any,
+            groupPath,
+            options: typographyOptions,
+          }) as any,
+        { groupPath },
+      );
+      const interpreted = resolver.resolveAll();
+      const classPrefix = sanitizeIdentifierSegment(typographyOptions?.prefix ?? "dt-type") || "dt-type";
+      const selectorPrefix = `${classPrefix}-${sanitizeIdentifierSegment(groupName)}`;
+      const { nodes, variants } = generateRecipeCss(interpreted as any, {
+        media: cachedMediaDescriptor,
+        selectorBuilder: variantName => `.${selectorPrefix}-${sanitizeIdentifierSegment(variantName)}`,
+      });
+      allNodes.push(...nodes);
+      const classEntries = assignRecipeClasses(variants, { prefix: selectorPrefix });
+      allClasses[groupName] = classEntries.reduce<Record<string, string>>((acc, entry) => {
+        acc[entry.variant] = entry.className;
+        return acc;
+      }, {});
+    }
+    return { nodes: allNodes, classes: allClasses };
+  })();
+
   const syncTypography = () => {
     if (rawTypographySource !== cachedTypographySource) {
       cachedTypographySource = rawTypographySource;
-      cachedTypographyTokens = rawTypographySource
-        ? buildTypographyTokens(rawTypographySource, { unit: (options?.typography as TypographyBuilderOptions)?.unit ?? "px" })
-        : undefined;
-      cachedTypographyVariables = cachedTypographyTokens
-        ? buildTypographyVariableNodes(cachedTypographyTokens, (options?.typography as TypographyBuilderOptions)?.prefix)
+      cachedNormalizedTypography = normalizeTypographyCollection(rawTypographySource);
+      cachedTypographyTokens = generateTokens(cachedNormalizedTypography, ({ name, value }) => {
+        const baseToken = { base: (value as any).base, variants: {} };
+        return typographyHelper.tokenizeProperty
+          ? typographyHelper.tokenizeProperty(name, value as any, baseToken) as any
+          : baseToken;
+      });
+      const variables = typographyHelper.mapCssVariables
+        ? typographyHelper.mapCssVariables(cachedTypographyTokens, typographyPrefix)
+        : generateCssVariables(cachedTypographyTokens, { prefix: typographyPrefix });
+      const baseNode: CssVariablesNode[] = Object.keys(variables).length
+        ? [{ kind: "variables" as const, selector: ":root", variables }]
         : [];
+      const responsiveNodes = expandResponsiveCssVariables(cachedNormalizedTypography as any, {
+        resolveCssVariable: createTypographyCssVariableResolver(typographyOptions?.prefix ?? ""),
+        media: cachedMediaDescriptor,
+      });
+      cachedTypographyVariables = [...baseNode, ...responsiveNodes];
     }
   };
   let cachedLayoutSource = clone.layout;
@@ -683,71 +786,12 @@ export function createTheme<
     configurable: true,
   });
 
-  const typographyHelper = createTypographyThemeHelper();
-
-  const buildTypographyRecipes = (): {
-    nodes: CssRuleNode[];
-    classes: Record<string, Record<string, string>>;
-  } => {
-    const styleSource = rawTypographySource?.recipes;
-    if (!styleSource || !Object.keys(styleSource).length || !typographyHelper.interpretRecipe) {
-      return { nodes: [], classes: {} };
-    }
-
-    const allowedBreakpoints = Object.keys(clone.breakpoints) as T[];
-    const typographyOptions = options?.typography as TypographyBuilderOptions | undefined;
-    const allNodes: CssRuleNode[] = [];
-    const allClasses: Record<string, Record<string, string>> = {};
-
-    for (const [groupName, groupDef] of Object.entries(styleSource)) {
-      const groupPath = `typography.recipes.${groupName}`;
-      const normalized = normalizeRecipeGroup(groupDef as any, {
-        propertyPath: groupPath,
-        allowedBreakpoints,
-      });
-
-      const resolver = createRecipeVariantResolver(
-        normalized,
-        (variantName, variant, resolve) =>
-          typographyHelper.interpretRecipe!(variantName, variant as any, {
-            tokens: cachedTypographyTokens,
-            breakpoints: clone.breakpoints,
-            resolveCssVariable: (() => "") as any,
-            resolveRecipeVariant: resolve as any,
-            groupPath,
-            options: typographyOptions,
-          }) as any,
-        { groupPath },
-      );
-
-      const interpreted = resolver.resolveAll();
-      const classPrefix = sanitizeIdentifierSegment(typographyOptions?.prefix ?? "dt-type") || "dt-type";
-      const selectorPrefix = `${classPrefix}-${sanitizeIdentifierSegment(groupName)}`;
-      const { nodes, variants } = generateRecipeCss(interpreted as any, {
-        media: cachedMediaDescriptor,
-        selectorBuilder: variantName =>
-          `.${selectorPrefix}-${sanitizeIdentifierSegment(variantName)}`,
-      });
-
-      allNodes.push(...nodes);
-      const classEntries = assignRecipeClasses(variants, { prefix: selectorPrefix });
-      allClasses[groupName] = classEntries.reduce<Record<string, string>>((acc, entry) => {
-        acc[entry.variant] = entry.className;
-        return acc;
-      }, {});
-    }
-
-    return { nodes: allNodes, classes: allClasses };
-  };
-
-  let cachedTypographyRecipes = buildTypographyRecipes();
-
   const buildTypographySlice = (): TypographyThemeSlice => {
     if (!rawTypographySource) {
-      return { families: {} as any, weights: {} as any, lineHeights: {} as any, letterSpacings: {} as any, scale: {} as any } as unknown as TypographyThemeSlice;
+      return {} as unknown as TypographyThemeSlice;
     }
-    const source = rawTypographySource;
-    const slice = { ...source } as TypographyThemeSlice;
+    const properties = extractTypographyProperties(rawTypographySource) ?? {};
+    const slice = { ...properties } as TypographyThemeSlice;
 
     Object.defineProperty(slice, "tokens", {
       get: () => { syncTypography(); return cachedTypographyTokens; },
@@ -774,12 +818,24 @@ export function createTheme<
       enumerable: true, configurable: true,
     });
     Object.defineProperty(slice, "style", {
-      get: () => (group: string, variant: string) => {
+      get: () => {
         syncTypography();
-        if (!cachedTypographyTokens) throw new Error("Typography source is not defined.");
-        return createTypographyStyle(cachedTypographyTokens, rawTypographySource?.recipes, group, variant);
+        const extras = typographyHelper.buildSlice
+          ? typographyHelper.buildSlice({
+              source: extractTypographyProperties(rawTypographySource),
+              tokens: cachedTypographyTokens,
+              variableNodes: cachedTypographyVariables,
+              recipes: { nodes: cachedTypographyRecipes.nodes, classes: cachedTypographyRecipes.classes },
+              options: typographyOptions,
+            }) as Record<string, unknown>
+          : {};
+        return (extras.style ?? (() => { throw new Error("Typography source is not defined."); })) as (g: string, v: string) => Record<string, string>;
       },
       enumerable: true, configurable: true,
+    });
+    Object.defineProperty(slice, "recipes", {
+      value: rawTypographySource?.recipes ?? {},
+      enumerable: true, configurable: true, writable: true,
     });
 
     return slice;

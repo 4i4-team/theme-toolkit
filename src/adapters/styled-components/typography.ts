@@ -1,14 +1,15 @@
 import { css } from "styled-components";
 import { createTypographyStyle } from "../../subsystems/typography";
-import type { TypographyTokens, TypographyStyles } from "../../subsystems/typography";
+import type { TypographyTokens } from "../../subsystems/typography";
 
 export const typographyMixin = (
   tokens: TypographyTokens,
-  recipes: TypographyStyles | undefined,
+  prefix: string,
   group: string,
   variant: string,
+  recipes?: Record<string, Record<string, Record<string, unknown>>>,
 ) => {
-  const styles = createTypographyStyle(tokens, recipes, group, variant);
+  const styles = createTypographyStyle(tokens, prefix, group, variant, recipes);
 
   const mixin = css`
     font-family: ${styles.fontFamily};

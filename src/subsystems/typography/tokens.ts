@@ -1,139 +1,115 @@
-import { normalizeCssVariablePrefix } from "../../core/common";
-import type { CssVariablesNode } from "../../core/common";
-import type {
-  TypographyBuilderOptions,
-  TypographyRatioKey,
-  TypographyScaleConfig,
-  TypographyScaleKey,
-  TypographyScaleSteps,
-  TypographyScaleTokens,
-  TypographyScaleUnit,
-  TypographySource,
-  TypographyStyles,
-  TypographyTokens,
-} from "./types";
+import { normalizeCssVariablePrefix, sanitizeIdentifierSegment } from "../../core/common";
+import type { CssVariablesNode, ResolveCssVariableName } from "../../core/common";
+import type { TypographyPropertyTokens, TypographyTokens, FontSizeExtras } from "./types";
 
-const TYPOGRAPHY_RATIOS: Record<TypographyRatioKey, number> = {
-  "minor-second": 1.067,
-  "major-second": 1.125,
-  "minor-third": 1.2,
-  "major-third": 1.25,
-  "perfect-fourth": 1.333,
-  "augmented-fourth": 1.414,
-  "perfect-fifth": 1.5,
-  golden: 1.618,
+const PROPERTY_CSS_MAP: Record<string, string> = {
+  fontFamily: "font-family",
+  fontSize: "font-size",
+  fontWeight: "font-weight",
+  lineHeight: "line-height",
+  letterSpacing: "letter-spacing",
+  fontStyle: "font-style",
+  textTransform: "text-transform",
+  textDecoration: "text-decoration",
+  textAlign: "text-align",
 };
 
-const DEFAULT_PRECISION = 4;
-
-const DEFAULT_SCALE_STEPS: TypographyScaleSteps = {
-  xs: -2,
-  sm: -1,
-  md: 0,
-  lg: 1,
-  xl: 2,
-  "2xl": 3,
-  "3xl": 4,
-  "4xl": 5,
+export const tokenizeTypographyProperty = (
+  name: string,
+  normalized: { base: unknown; variants?: Record<string, { base: unknown }> },
+  baseToken: TypographyPropertyTokens,
+): TypographyPropertyTokens => {
+  const variants: Record<string, string | number> = { base: normalized.base as string | number };
+  if (normalized.variants) {
+    for (const [variantName, def] of Object.entries(normalized.variants)) {
+      variants[variantName] = def.base as string | number;
+    }
+  }
+  return { ...baseToken, base: normalized.base as string | number, variants };
 };
 
-const buildScaleTokens = (
-  config: TypographyScaleConfig,
-  unit: TypographyScaleUnit,
-): TypographyScaleTokens => {
-  const { baseFontSize, ratio, steps, variants, algorithm, precision = DEFAULT_PRECISION } = config;
-  const ratioValue = TYPOGRAPHY_RATIOS[ratio];
-  const finalSteps = { ...DEFAULT_SCALE_STEPS, ...steps } as TypographyScaleSteps;
-  let previousValue: number | null = null;
+export const mapTypographyCssVariables = (
+  tokens: TypographyTokens,
+  prefix: string,
+  options?: { unit?: "px" | "rem"; baseFontSize?: number },
+): Record<string, string> => {
+  const normalizedPrefix = normalizeCssVariablePrefix(prefix);
+  const variables: Record<string, string> = {};
+  const unit = options?.unit ?? "px";
+  const baseFontSize = options?.baseFontSize ?? 16;
 
-  return (Object.entries(finalSteps) as Array<[TypographyScaleKey, number]>).reduce(
-    (accumulator, [key, step]) => {
-      const provided = variants?.[key];
-      let value = provided;
+  for (const [propertyKey, token] of Object.entries(tokens)) {
+    const cssName = PROPERTY_CSS_MAP[propertyKey] ?? sanitizeIdentifierSegment(propertyKey);
 
-      if (value === undefined) {
-        if (algorithm) {
-          value = algorithm(baseFontSize, key, step, previousValue);
-        } else {
-          value = baseFontSize * Math.pow(ratioValue, step);
-        }
-      }
+    for (const [variantName, value] of Object.entries(token.variants)) {
+      const formatted = formatTokenValue(propertyKey, value, unit, baseFontSize);
+      const varName = `${normalizedPrefix}-${cssName}--${sanitizeIdentifierSegment(variantName)}`;
+      variables[varName] = formatted;
+    }
+  }
 
-      const rounded = Number(value.toFixed(precision));
-      previousValue = rounded;
-
-      accumulator[key] = {
-        value: unit === "rem" ? rounded / baseFontSize : rounded,
-        unit,
-      };
-
-      return accumulator;
-    },
-    {} as TypographyScaleTokens,
-  );
+  return variables;
 };
-
-export const buildTypographyTokens = (
-  source: TypographySource,
-  options?: TypographyBuilderOptions,
-): TypographyTokens => ({
-  families: source.families,
-  weights: source.weights,
-  lineHeights: source.lineHeights,
-  letterSpacings: source.letterSpacings,
-  scale: buildScaleTokens(source.scale, options?.unit ?? "px"),
-});
 
 export const buildTypographyVariableNodes = (
   tokens: TypographyTokens,
   prefix?: string,
 ): CssVariablesNode[] => {
-  const normalized = normalizeCssVariablePrefix(prefix);
-  const variables: Record<string, string> = {};
-
-  for (const [familyKey, family] of Object.entries(tokens.families)) {
-    variables[`${normalized}-font-family--${familyKey}`] = family;
-  }
-  for (const [weightKey, weight] of Object.entries(tokens.weights)) {
-    variables[`${normalized}-font-weight--${weightKey}`] = String(weight);
-  }
-  for (const [lineKey, lineHeight] of Object.entries(tokens.lineHeights)) {
-    variables[`${normalized}-line-height--${lineKey}`] = String(lineHeight);
-  }
-  for (const [spacingKey, spacing] of Object.entries(tokens.letterSpacings)) {
-    variables[`${normalized}-letter-spacing--${spacingKey}`] = spacing;
-  }
-  for (const [scaleKey, scaleValues] of Object.entries(tokens.scale)) {
-    variables[`${normalized}-font-size--${scaleKey}`] = `${scaleValues.value}${scaleValues.unit}`;
-  }
-
+  const variables = mapTypographyCssVariables(tokens, prefix ?? "dt");
   return Object.keys(variables).length
     ? [{ kind: "variables" as const, selector: ":root", variables }]
     : [];
 };
 
+export const createTypographyCssVariableResolver = (
+  prefix: string,
+): ResolveCssVariableName => {
+  const normalizedPrefix = normalizeCssVariablePrefix(prefix);
+  return (propertyKey: string, variant?: string): string => {
+    const cssName = PROPERTY_CSS_MAP[propertyKey] ?? sanitizeIdentifierSegment(propertyKey);
+    const variantSegment = sanitizeIdentifierSegment(variant ?? "base");
+    return `${normalizedPrefix}-${cssName}--${variantSegment}`;
+  };
+};
+
+const formatTokenValue = (
+  propertyKey: string,
+  value: string | number,
+  unit: "px" | "rem" = "px",
+  baseFontSize = 16,
+): string => {
+  if (typeof value === "string") return value;
+  if (propertyKey === "fontSize") {
+    if (unit === "rem") {
+      const remValue = Number((value / baseFontSize).toFixed(4));
+      return `${remValue}rem`;
+    }
+    return `${value}px`;
+  }
+  return String(value);
+};
+
 export const createTypographyStyle = (
   tokens: TypographyTokens,
-  recipes: TypographyStyles | undefined,
+  prefix: string,
   group: string,
   variant: string,
+  recipes?: Record<string, Record<string, Record<string, unknown>>>,
 ) => {
   const definition = recipes?.[group]?.[variant];
   if (!definition) {
-    throw new Error(`Typography variant "${group}.${variant}" is not defined.`);
+    throw new Error(`Typography recipe "${group}.${variant}" is not defined.`);
   }
 
-  const family = tokens.families[definition.family];
-  const scale = tokens.scale[definition.size];
-  const weight = tokens.weights[definition.weight];
-  const lineHeight = tokens.lineHeights[definition.lineHeight];
-  const letterSpacing = tokens.letterSpacings[definition.letterSpacing];
+  const resolve = createTypographyCssVariableResolver(prefix);
+  const result: Record<string, string> = {};
 
-  return {
-    fontFamily: family,
-    fontSize: `${scale.value}${scale.unit}`,
-    fontWeight: weight,
-    lineHeight,
-    letterSpacing,
-  };
+  for (const [propKey, tokenRef] of Object.entries(definition)) {
+    if (typeof tokenRef !== "string") continue;
+    const cssProperty = PROPERTY_CSS_MAP[propKey];
+    if (!cssProperty) continue;
+    result[cssProperty] = `var(${resolve(propKey, tokenRef)})`;
+  }
+
+  return result;
 };

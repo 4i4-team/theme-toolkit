@@ -5,9 +5,11 @@ Design-token engine and recipe system for building framework-agnostic UI kits. T
 ## Key documents
 
 - [`docs/core/README.md`](docs/core/README.md) — complete core reference: pipelines, stages, IR types, media utility, SubsystemHelper contract, output shape.
-- [`docs/colors/README.md`](docs/colors/README.md) — colors subsystem reference: input shapes, steps, recipes, CSS variable naming, helper hooks. Reference implementation of the subsystem pattern.
+- [`docs/colors/README.md`](docs/colors/README.md) — colors subsystem reference: input shapes, steps, recipes, CSS variable naming, helper hooks.
+- [`docs/typography/README.md`](docs/typography/README.md) — typography subsystem reference: 9 PropertyValue properties, fontSize scale generation, recipes, helper hooks.
 - [`README.md`](README.md) — quick start and public API overview.
-- [`examples/colors-app`](examples/colors-app/) — vanilla TS example: step swatches, recipe buttons, responsive demo, generated CSS viewer.
+- [`examples/colors-app`](examples/colors-app/) — vanilla TS colors example.
+- [`examples/typography-app`](examples/typography-app/) — vanilla TS typography example.
 
 ## Source structure
 
@@ -151,14 +153,27 @@ The colors subsystem (`src/subsystems/colors/`) is the reference for the full pa
 
 See [`docs/colors/README.md`](docs/colors/README.md) for the complete reference.
 
+### Typography subsystem
+
+The typography subsystem (`src/subsystems/typography/`) follows the same PropertyValue pattern as colors. Nine properties, each with base + variants:
+
+- **Properties:** `fontFamily`, `fontSize`, `fontWeight`, `lineHeight`, `letterSpacing`, `fontStyle`, `textTransform`, `textDecoration`, `textAlign`.
+- **fontSize scale:** when `ratio` is set (e.g., `"major-third"`), auto-generates scale variants (xs→4xl) during normalization. Each value = `base * ratio^step`. Custom `algorithm: (base, key, step, prev) => number` can override.
+- **Unit handling:** `options.typography.unit` controls fontSize output — `"px"` (default) or `"rem"` (divided by baseFontSize).
+- **Recipes:** reference property variants by name: `{ fontFamily: "heading", fontSize: "xl" }` → `font-family: var(--prefix-font-family--heading); font-size: var(--prefix-font-size--xl)`.
+- **All hooks:** `normalizeProperty` (scale generation), `tokenizeProperty`, `mapCssVariables` (with unit), `interpretRecipe`, `buildSlice` (returns `style()` utility).
+- **Output:** `theme.typography.fontFamily` (raw passthrough), `.tokens`, `.variables`, `.nodes`, `.classes`, `.getClass()`, `.style()` — all at one level.
+
+See [`docs/typography/README.md`](docs/typography/README.md) for the complete reference.
+
 ## For consumers
 
-1. Define your raw theme: `{ breakpoints, colors: { ..., recipes: { ... } }, typography?: ..., layout?: ... }`.
+1. Define your raw theme: `{ breakpoints, colors: { ..., recipes: { ... } }, typography: { fontFamily: { base, variants }, fontSize: { base, ratio }, ..., recipes: { ... } } }`.
 2. Call `createTheme(rawTheme, options)`. Options control CSS variable prefixes, units, class prefixes per subsystem.
 3. Inject `theme.css` as a global stylesheet (one `<style>` tag, or a `.css` file, or however your framework works).
-4. Reference recipe class names via `theme.colors.getClass("group", "variant")` or the `theme.colors.classes` map.
-5. Access raw properties at their original path: `theme.colors.primary.base`, `theme.colors.primary.text`.
-6. Access computed data via getters: `theme.colors.tokens`, `theme.colors.variables`, `theme.colors.nodes`.
+4. Reference recipe class names via `theme.colors.getClass("group", "variant")` or `theme.typography.getClass("group", "variant")`.
+5. Access raw properties at their original path: `theme.colors.primary.base`, `theme.typography.fontFamily.base`.
+6. Access computed data via getters: `theme.colors.tokens`, `theme.typography.tokens`, `.variables`, `.nodes`.
 
 ## For subsystem developers
 

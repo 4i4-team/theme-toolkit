@@ -98,6 +98,41 @@ spacingSection.innerHTML = `
 `;
 app.appendChild(spacingSection);
 
+// --- Gutter tokens ---
+const gutterSection = document.createElement("section");
+const gutterVariants = tokens?.gutters?.variants ?? {};
+gutterSection.innerHTML = `
+  <h2>Gutter tokens</h2>
+  <div style="display:flex;gap:4px">
+    ${Object.entries(gutterVariants).map(([name, value]) => {
+      const numVal = typeof value === "number" ? value : parseInt(String(value)) || 0;
+      return `<div style="flex:1 1 0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#69db7c;height:80px;overflow:hidden;border-radius:6px">
+        <div style="width:calc(100% - ${numVal * 2}px);height:calc(100% - ${numVal * 2}px);background:#fff;border-radius:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:8px;min-height:8px">
+          <span style="font-size:0.7rem;font-weight:600;color:#1d1d1f">${name}</span>
+          <span style="font-size:0.6rem;color:#666">${numVal}px</span>
+        </div>
+      </div>`;
+    }).join("")}
+  </div>
+`;
+app.appendChild(gutterSection);
+
+// --- Aspect ratio tokens ---
+const arSection = document.createElement("section");
+const arVariants = tokens?.aspectRatio?.variants ?? {};
+arSection.innerHTML = `
+  <h2>Aspect ratio tokens</h2>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+    ${Object.entries(arVariants).map(([name, value]) => {
+      return `<div style="width:120px;aspect-ratio:${value};background:#e9ecef;border:2px solid #adb5bd;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-direction:column">
+        <span style="font-size:0.75rem;font-weight:600">${name}</span>
+        <span style="font-size:0.65rem;color:#666">${value}</span>
+      </div>`;
+    }).join("")}
+  </div>
+`;
+app.appendChild(arSection);
+
 // --- Container demo ---
 const containerSection = document.createElement("section");
 containerSection.innerHTML = `
@@ -150,9 +185,17 @@ colSection.innerHTML = `
     <div class="brand-col-xs-3 col-demo">col-3</div>
   </div>
 
-  <div style="display:grid;grid-template-columns:repeat(12,1fr);gap:4px">
+  <div style="display:grid;grid-template-columns:repeat(12,1fr);gap:4px;margin-bottom:1rem">
     <div class="brand-col-xs-8 col-demo">col-8</div>
     <div class="brand-col-xs-4 col-demo">col-4</div>
+  </div>
+
+  <h3>Offsets</h3>
+  <div style="display:grid;grid-template-columns:repeat(12,1fr);gap:4px;margin-bottom:0.5rem">
+    <div class="brand-offset-xs-2 brand-col-xs-4 col-demo">offset-2 col-4</div>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(12,1fr);gap:4px">
+    <div class="brand-offset-xs-4 brand-col-xs-6 col-demo">offset-4 col-6</div>
   </div>
 `;
 app.appendChild(colSection);
@@ -190,6 +233,41 @@ stackSection.innerHTML = `
   </div>
 `;
 app.appendChild(stackSection);
+
+// --- Recipe section demos ---
+const recipeSection = document.createElement("section");
+recipeSection.innerHTML = `
+  <h2>Recipe sections (className-based)</h2>
+  <h3>.brand-section-block (compact vertical, relaxed horizontal padding)</h3>
+  <div class="brand-section-block" style="background:#e9ecef;border-radius:8px;margin-bottom:1rem">
+    <div style="background:#fff;border-radius:4px;padding:1rem;text-align:center;font-size:0.8rem;color:#495057">
+      Content inside section.block recipe
+    </div>
+  </div>
+  <h3>.brand-section-hero (relaxed padding all around)</h3>
+  <div class="brand-section-hero" style="background:#e9ecef;border-radius:8px">
+    <div style="background:#fff;border-radius:4px;padding:1rem;text-align:center;font-size:0.8rem;color:#495057">
+      Content inside section.hero recipe
+    </div>
+  </div>
+`;
+app.appendChild(recipeSection);
+
+// --- Responsive ---
+const responsiveSection = document.createElement("section");
+responsiveSection.innerHTML = `
+  <h2>Responsive behavior</h2>
+  <p>Resize the window to observe:</p>
+  <ul style="margin:0.5rem 0 1rem 1.5rem;font-size:0.9rem;color:#555;line-height:1.8">
+    <li><code>spacing.relaxed</code> — changes from 32px → 20px (sm) → 40px (lg) via CSS variable override</li>
+    <li><code>.brand-container</code> — max-width steps through breakpoints (fixed mode)</li>
+    <li><code>.brand-container-narrow</code> — max-width caps at 768px</li>
+    <li><code>.brand-grid-feature</code> — columns collapse 3 → 2 → 1</li>
+    <li><code>.brand-stack-horizontal</code> — switches to column direction at sm</li>
+  </ul>
+  <p>All via CSS cascade — no JavaScript involved.</p>
+`;
+app.appendChild(responsiveSection);
 
 // --- Classes + CSS ---
 const classSection = document.createElement("section");

@@ -28,7 +28,7 @@ export const rawTheme = {
       baseFontSize: 16,
       ratio: "major-third" as const,
     },
-    styles: {
+    recipes: {
       body: {
         sm: { family: "base", size: "sm", weight: "regular", lineHeight: "relaxed", letterSpacing: "normal" },
         md: { family: "base", size: "md", weight: "regular", lineHeight: "normal", letterSpacing: "normal" },

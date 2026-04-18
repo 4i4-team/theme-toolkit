@@ -46,7 +46,7 @@ const typographyEntries = Object.entries(rawTheme.typography)
   .filter(([key]) => key !== "styles")
   .map(([key, value]) => `  ${key}: ${formatValue(value)},`);
 
-const styleGroups = Object.entries(rawTheme.typography.styles);
+const styleGroups = Object.entries(rawTheme.typography.recipes);
 const styleLines = styleGroups.map(([group, variants]) => {
   const variantNames = Object.keys(variants as Record<string, unknown>);
   return `    ${group}: { ${variantNames.map(v => `${v}: {...}`).join(", ")} },`;

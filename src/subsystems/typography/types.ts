@@ -68,7 +68,7 @@ export type TypographySource = {
   lineHeights: Record<TypographyLineHeightKey, number>;
   letterSpacings: Record<TypographyLetterSpacingKey, string>;
   scale: TypographyScaleConfig;
-  styles: TypographyStyles;
+  recipes?: TypographyStyles;
 };
 
 export type TypographyScaleTokens = Record<
@@ -82,7 +82,6 @@ export type TypographyTokens = {
   lineHeights: Record<TypographyLineHeightKey, number>;
   letterSpacings: Record<TypographyLetterSpacingKey, string>;
   scale: TypographyScaleTokens;
-  styles: TypographyStyles;
 };
 
 export type TypographyBuilderOptions = {

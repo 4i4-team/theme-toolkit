@@ -14,7 +14,7 @@ export const createTypographyThemeHelper = (): SubsystemThemeHelper =>
       const options = context.options as TypographyBuilderOptions | undefined;
       const tokens = buildTypographyTokens(source, { unit: options?.unit ?? "px" });
       return {
-        style: (group: string, variant: string) => createTypographyStyle(tokens, group, variant),
+        style: (group: string, variant: string) => createTypographyStyle(tokens, source.recipes, group, variant),
       };
     },
   }) as unknown as SubsystemThemeHelper;

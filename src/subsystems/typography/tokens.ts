@@ -9,6 +9,7 @@ import type {
   TypographyScaleTokens,
   TypographyScaleUnit,
   TypographySource,
+  TypographyStyles,
   TypographyTokens,
 } from "./types";
 
@@ -81,7 +82,6 @@ export const buildTypographyTokens = (
   lineHeights: source.lineHeights,
   letterSpacings: source.letterSpacings,
   scale: buildScaleTokens(source.scale, options?.unit ?? "px"),
-  styles: source.styles,
 });
 
 export const buildTypographyVariableNodes = (
@@ -114,10 +114,11 @@ export const buildTypographyVariableNodes = (
 
 export const createTypographyStyle = (
   tokens: TypographyTokens,
+  recipes: TypographyStyles | undefined,
   group: string,
   variant: string,
 ) => {
-  const definition = tokens.styles[group]?.[variant];
+  const definition = recipes?.[group]?.[variant];
   if (!definition) {
     throw new Error(`Typography variant "${group}.${variant}" is not defined.`);
   }

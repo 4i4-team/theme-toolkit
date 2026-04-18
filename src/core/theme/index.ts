@@ -689,7 +689,7 @@ export function createTheme<
     nodes: CssRuleNode[];
     classes: Record<string, Record<string, string>>;
   } => {
-    const styleSource = rawTypographySource?.styles;
+    const styleSource = rawTypographySource?.recipes;
     if (!styleSource || !Object.keys(styleSource).length || !typographyHelper.interpretRecipe) {
       return { nodes: [], classes: {} };
     }
@@ -700,7 +700,7 @@ export function createTheme<
     const allClasses: Record<string, Record<string, string>> = {};
 
     for (const [groupName, groupDef] of Object.entries(styleSource)) {
-      const groupPath = `typography.styles.${groupName}`;
+      const groupPath = `typography.recipes.${groupName}`;
       const normalized = normalizeRecipeGroup(groupDef as any, {
         propertyPath: groupPath,
         allowedBreakpoints,
@@ -744,7 +744,7 @@ export function createTheme<
 
   const buildTypographySlice = (): TypographyThemeSlice => {
     if (!rawTypographySource) {
-      return { families: {} as any, weights: {} as any, lineHeights: {} as any, letterSpacings: {} as any, scale: {} as any, styles: {} } as TypographyThemeSlice;
+      return { families: {} as any, weights: {} as any, lineHeights: {} as any, letterSpacings: {} as any, scale: {} as any } as unknown as TypographyThemeSlice;
     }
     const source = rawTypographySource;
     const slice = { ...source } as TypographyThemeSlice;
@@ -777,7 +777,7 @@ export function createTheme<
       get: () => (group: string, variant: string) => {
         syncTypography();
         if (!cachedTypographyTokens) throw new Error("Typography source is not defined.");
-        return createTypographyStyle(cachedTypographyTokens, group, variant);
+        return createTypographyStyle(cachedTypographyTokens, rawTypographySource?.recipes, group, variant);
       },
       enumerable: true, configurable: true,
     });

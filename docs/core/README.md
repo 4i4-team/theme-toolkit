@@ -272,6 +272,42 @@ Nodes with `media` are wrapped: `@media (...) { selector { ... } }`. Nodes witho
 
 ---
 
+## Adapter
+
+**Files:** `src/core/theme/adapter.ts`, `src/core/theme/cssAdapter.ts`
+
+`createTheme` accepts an optional `adapter` that controls how the IR is rendered and how variable references are formatted.
+
+```ts
+interface ThemeAdapter<TMediaOutput = unknown> {
+  renderCss(nodes: CssNode[]): string;
+  resolveVariableReference(variableName: string): string;
+  wrapMedia<TBreakpoint>(descriptor: MediaDescriptor<TBreakpoint>): TMediaOutput;
+  extend?(theme: Record<string, unknown>): Record<string, unknown>;
+}
+```
+
+| Hook | Default (CSS adapter) | Description |
+|---|---|---|
+| `renderCss` | `renderToCssString(nodes)` | Converts IR to output format |
+| `resolveVariableReference` | `` (v) => `var(${v})` `` | Wraps variable names for declarations |
+| `wrapMedia` | passthrough (plain strings) | Transforms MediaDescriptor for the target |
+| `extend` | none | Attaches extra utilities to theme root |
+
+The default CSS adapter is applied when no `adapter` is passed:
+
+```ts
+const theme = createTheme(rawTheme);  // uses createCssAdapter() internally
+theme.media.md.min  // "@media (min-width: 768px)" — plain string
+```
+
+Custom adapters can target other platforms:
+- **styled-components:** `createStyledComponentsAdapter()` — wraps media as tagged templates
+- **SASS:** render `$variables`, `` resolveVariableReference: (v) => `$${v.replace(/^--/, '')}` ``
+- **React Native:** inline resolved values, render to StyleSheet objects
+
+---
+
 ## Media utility
 
 **Files:** `src/core/media/descriptors.ts`, `src/core/media/queries.ts`
@@ -338,6 +374,7 @@ Each subsystem exports a `create<Name>ThemeHelper()` returning an object that sa
 - `tokens` — the subsystem's tokens (cast internally).
 - `breakpoints` — the theme's breakpoint map.
 - `resolveCssVariable(name, variant?, field?)` — produces the CSS variable name matching the subsystem's naming convention.
+- `resolveVariableReference(variableName)` — wraps a CSS variable name for use in declarations (adapter-driven; defaults to `var(--name)`).
 - `resolveRecipeVariant(variantName)` — lazily resolves a sibling variant (cycle-safe).
 - `groupPath` — for contextual error messages.
 

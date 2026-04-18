@@ -68,8 +68,10 @@ theme.components.classes           // { buttons: { primary: { classes: [...], cl
 
 ## Key features
 
+- **Framework-agnostic by default.** No styled-components or other framework dependency. Plain CSS strings, plain media query strings, plain class names.
+- **Adapter system.** Swap the output format via `adapter` option: `createStyledComponentsAdapter()` for SC tagged templates, or build custom adapters for SASS, LESS, React Native, etc.
 - **CSS variables + single `:root`** across all subsystems. No duplicate wrappers.
-- **Responsive via CSS cascade.** Property-level responsive entries emit `@media { :root { ... } }` overrides; recipes reference variables via `var(--...)` so breakpoint changes cascade automatically.
+- **Responsive via CSS cascade.** Property-level responsive entries emit `@media { :root { ... } }` overrides; recipes reference variables via the adapter's `resolveVariableReference` (defaults to `var(--...)`) so breakpoint changes cascade automatically.
 - **Recipes produce class names**, not framework-specific output. Works with React, Angular, plain HTML, or any other consumer.
 - **IR (intermediate representation)** output alongside strings. Adapters can convert IR to styled-components RuleSets, Emotion objects, or any other format.
 - **Subsystem architecture.** Colors, typography, layout, effects, and components all follow the same pattern.
@@ -101,14 +103,33 @@ theme.components.classes           // { buttons: { primary: { classes: [...], cl
 | [react-sc-app](examples/react-sc-app/) | React + SC | Media templates, typographyMixin, direct tokens, CSS vars |
 | [angular-app](examples/angular-app/) | Angular 19 | InjectionToken, class bindings, CSS variables, direct tokens |
 
+## Adapters
+
+By default, `createTheme` produces plain CSS with no framework dependency. Pass an adapter to customize the output:
+
+```ts
+import { createTheme, createStyledComponentsAdapter } from "@theme-registry/theme-kit";
+
+// Default — plain CSS strings, plain media query strings
+const theme = createTheme(rawTheme, options);
+theme.media.md.min  // "@media (min-width: 768px)" — plain string
+
+// styled-components — media becomes tagged template functions
+const scTheme = createTheme(rawTheme, {
+  ...options,
+  adapter: createStyledComponentsAdapter(),
+});
+scTheme.media.md.min`padding: 24px;`  // SC tagged template
+```
+
+Custom adapters can target SASS (`$variables`), LESS (`@variables`), React Native, or any other platform by implementing the `ThemeAdapter` interface. See [SC adapter docs](docs/adapters/styled-components/README.md).
+
 ## Framework integration
 
-The core is framework-agnostic. Adapters provide ergonomic wrappers:
-
-- **React + styled-components:** SC-wrapped media templates (`theme.media.md.min\`...\``), `typographyMixin`, `DefaultTheme` augmentation. See [SC adapter docs](docs/adapters/styled-components/README.md).
-- **React (no SC):** `<style>{theme.css}</style>` + className strings. See [react-app example](examples/react-app/).
-- **Angular:** Inject stylesheet at bootstrap, reference class names in templates. See [angular-app example](examples/angular-app/).
-- **Any framework:** The output is CSS strings + class name strings. Use however your framework consumes CSS.
+- **React + styled-components:** Pass `adapter: createStyledComponentsAdapter()`. See [SC adapter docs](docs/adapters/styled-components/README.md) and [react-sc-app example](examples/react-sc-app/).
+- **React (no SC):** No adapter needed. `<style>{theme.css}</style>` + className strings. See [react-app example](examples/react-app/).
+- **Angular:** No adapter needed. Inject stylesheet at bootstrap, reference class names in templates. See [angular-app example](examples/angular-app/).
+- **Any framework:** The default output is CSS strings + class name strings. Use however your framework consumes CSS.
 
 ## License
 

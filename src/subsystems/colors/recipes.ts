@@ -25,6 +25,7 @@ export const interpretPaletteRecipeVariant = (
     variant.base,
     tokens,
     context.resolveCssVariable,
+    context.resolveVariableReference,
     path,
   );
 
@@ -43,6 +44,7 @@ export const interpretPaletteRecipeVariant = (
       entry as unknown as PaletteRecipeProps,
       tokens,
       context.resolveCssVariable,
+      context.resolveVariableReference,
       `${path}.responsive`,
     );
 
@@ -64,6 +66,7 @@ const interpretRecipeProps = <TColor extends string>(
   props: PaletteRecipeProps | undefined,
   tokens: Record<TColor, PaletteTokens>,
   resolveCssVariable: ResolveCssVariableName,
+  resolveVariableReference: (varName: string) => string,
   path: string,
 ): RecipeStyleBlock => {
   const styles: RecipeStyleBlock = {};
@@ -76,7 +79,7 @@ const interpretRecipeProps = <TColor extends string>(
       return;
     }
 
-    const resolved = resolvePaletteReference(value, tokens, resolveCssVariable, path, property);
+    const resolved = resolvePaletteReference(value, tokens, resolveCssVariable, resolveVariableReference, path, property);
     if (resolved === undefined || resolved === "") {
       return;
     }
@@ -91,6 +94,7 @@ const resolvePaletteReference = <TColor extends string>(
   value: string | number,
   tokens: Record<TColor, PaletteTokens>,
   resolveCssVariable: ResolveCssVariableName,
+  resolveVariableReference: (varName: string) => string,
   path: string,
   property: string,
 ): string | number => {
@@ -114,11 +118,11 @@ const resolvePaletteReference = <TColor extends string>(
   const subKey = segments.length > 1 ? segments.slice(1).join(".") : undefined;
 
   if (!subKey) {
-    return `var(${resolveCssVariable(paletteName as string)})`;
+    return resolveVariableReference(resolveCssVariable(paletteName as string));
   }
 
   if (subKey === "text") {
-    return `var(${resolveCssVariable(paletteName as string, undefined, "text")})`;
+    return resolveVariableReference(resolveCssVariable(paletteName as string, undefined, "text"));
   }
 
   if (!palette.variants[subKey]) {
@@ -127,7 +131,7 @@ const resolvePaletteReference = <TColor extends string>(
     );
   }
 
-  return `var(${resolveCssVariable(paletteName as string, subKey)})`;
+  return resolveVariableReference(resolveCssVariable(paletteName as string, subKey));
 };
 
 const formatPropertyName = (property: string): string => {

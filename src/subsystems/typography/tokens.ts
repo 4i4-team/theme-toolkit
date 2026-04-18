@@ -95,6 +95,7 @@ export const createTypographyStyle = (
   group: string,
   variant: string,
   recipes?: Record<string, Record<string, Record<string, unknown>>>,
+  resolveVariableReference: (varName: string) => string = (v) => `var(${v})`,
 ) => {
   const definition = recipes?.[group]?.[variant];
   if (!definition) {
@@ -108,7 +109,7 @@ export const createTypographyStyle = (
     if (typeof tokenRef !== "string") continue;
     const cssProperty = PROPERTY_CSS_MAP[propKey];
     if (!cssProperty) continue;
-    result[cssProperty] = `var(${resolve(propKey, tokenRef)})`;
+    result[cssProperty] = resolveVariableReference(resolve(propKey, tokenRef));
   }
 
   return result;

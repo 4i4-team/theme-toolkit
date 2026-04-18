@@ -77,6 +77,7 @@ export const buildColumnsNodes = (
   classPrefix: string,
   breakpoints: Record<string, number>,
   media: MediaDescriptor<string>,
+  resolveVarRef: (varName: string) => string = (v) => `var(${v})`,
 ): { variables: CssVariablesNode[]; rules: CssRuleNode[] } => {
   if (!input) return { variables: [], rules: [] };
   const normalizedPrefix = normalizeCssVariablePrefix(prefix);
@@ -94,8 +95,8 @@ export const buildColumnsNodes = (
     selector: ":root",
     variables: {
       [`${normalizedPrefix}-layout-columns--size`]: String(size),
-      [`${normalizedPrefix}-layout-columns--gutter`]: `var(${gutterVar})`,
-      [`${normalizedPrefix}-layout-columns--inset`]: `var(${insetVar})`,
+      [`${normalizedPrefix}-layout-columns--gutter`]: resolveVarRef(gutterVar),
+      [`${normalizedPrefix}-layout-columns--inset`]: resolveVarRef(insetVar),
     },
   }];
 
@@ -129,6 +130,7 @@ export const buildGridNodes = (
   classPrefix: string,
   media: MediaDescriptor<string>,
   spacingResolver: ResolveCssVariableName,
+  resolveVarRef: (varName: string) => string = (v) => `var(${v})`,
 ): CssRuleNode[] => {
   if (!grids) return [];
   const rules: CssRuleNode[] = [];
@@ -145,7 +147,7 @@ export const buildGridNodes = (
     if (grid.alignItems) declarations.push({ property: "align-items", value: grid.alignItems });
     if (grid.justifyContent) declarations.push({ property: "justify-content", value: grid.justifyContent });
     if (grid.alignContent) declarations.push({ property: "align-content", value: grid.alignContent });
-    if (grid.gap) declarations.push({ property: "gap", value: `var(${spacingResolver("spacing", grid.gap)})` });
+    if (grid.gap) declarations.push({ property: "gap", value: resolveVarRef(spacingResolver("spacing", grid.gap)) });
 
     rules.push({ kind: "rule", selector, declarations });
 
@@ -164,7 +166,7 @@ export const buildGridNodes = (
       if (entry.alignItems) respDeclarations.push({ property: "align-items", value: entry.alignItems });
       if (entry.justifyContent) respDeclarations.push({ property: "justify-content", value: entry.justifyContent });
       if (entry.alignContent) respDeclarations.push({ property: "align-content", value: entry.alignContent });
-      if (entry.gap) respDeclarations.push({ property: "gap", value: `var(${spacingResolver("spacing", entry.gap)})` });
+      if (entry.gap) respDeclarations.push({ property: "gap", value: resolveVarRef(spacingResolver("spacing", entry.gap)) });
 
       if (respDeclarations.length) {
         rules.push({ kind: "rule", selector, media: mediaQuery, declarations: respDeclarations });
@@ -180,6 +182,7 @@ export const buildStackNodes = (
   classPrefix: string,
   media: MediaDescriptor<string>,
   spacingResolver: ResolveCssVariableName,
+  resolveVarRef: (varName: string) => string = (v) => `var(${v})`,
 ): CssRuleNode[] => {
   if (!stacks) return [];
   const rules: CssRuleNode[] = [];
@@ -194,7 +197,7 @@ export const buildStackNodes = (
     if (stack.align) declarations.push({ property: "align-items", value: stack.align });
     if (stack.justify) declarations.push({ property: "justify-content", value: stack.justify });
     if (stack.wrap) declarations.push({ property: "flex-wrap", value: stack.wrap });
-    if (stack.gap) declarations.push({ property: "gap", value: `var(${spacingResolver("spacing", stack.gap)})` });
+    if (stack.gap) declarations.push({ property: "gap", value: resolveVarRef(spacingResolver("spacing", stack.gap)) });
 
     rules.push({ kind: "rule", selector, declarations });
 
@@ -253,6 +256,7 @@ export const buildContainerNodes = (
   breakpoints: Record<string, number>,
   media: MediaDescriptor<string>,
   spacingResolver: ResolveCssVariableName,
+  resolveVarRef: (varName: string) => string = (v) => `var(${v})`,
 ): { variables: CssVariablesNode[]; rules: CssRuleNode[] } => {
   const normalizedPrefix = normalizeCssVariablePrefix(prefix);
   const allVariables: Record<string, string> = {};
@@ -297,11 +301,11 @@ export const buildContainerNodes = (
     const maxWidthValue = config.maxWidth ?? (name ? baseConfig.maxWidth : undefined);
 
     const insetVarName = `${normalizedPrefix}-layout-container${suffix}--inset`;
-    allVariables[insetVarName] = `var(${spacingResolver("spacing", insetRef)})`;
+    allVariables[insetVarName] = resolveVarRef(spacingResolver("spacing", insetRef));
 
     if (gutterRef) {
       const gutterVarName = `${normalizedPrefix}-layout-container${suffix}--gutter`;
-      allVariables[gutterVarName] = `var(${spacingResolver("gutters", gutterRef)})`;
+      allVariables[gutterVarName] = resolveVarRef(spacingResolver("gutters", gutterRef));
     }
 
     const declarations: CssDeclaration[] = [
@@ -309,13 +313,13 @@ export const buildContainerNodes = (
       { property: "width", value: "100%" },
       { property: "margin-left", value: "auto" },
       { property: "margin-right", value: "auto" },
-      { property: "padding-left", value: `var(${insetVarName})` },
-      { property: "padding-right", value: `var(${insetVarName})` },
+      { property: "padding-left", value: resolveVarRef(insetVarName) },
+      { property: "padding-right", value: resolveVarRef(insetVarName) },
     ];
 
     if (gutterRef) {
       const gutterVarName = `${normalizedPrefix}-layout-container${suffix}--gutter`;
-      declarations.push({ property: "gap", value: `var(${gutterVarName})` });
+      declarations.push({ property: "gap", value: resolveVarRef(gutterVarName) });
     }
 
     if (direction) {
@@ -391,12 +395,12 @@ export const buildContainerNodes = (
     if (entry.justify) declarations.push({ property: "justify-content", value: entry.justify as string });
     if (entry.inset) {
       const insetVar = spacingResolver("spacing", entry.inset as string);
-      declarations.push({ property: "padding-left", value: `var(${insetVar})` });
-      declarations.push({ property: "padding-right", value: `var(${insetVar})` });
+      declarations.push({ property: "padding-left", value: resolveVarRef(insetVar) });
+      declarations.push({ property: "padding-right", value: resolveVarRef(insetVar) });
     }
     if (entry.gutter) {
       const gutterVar = spacingResolver("gutters", entry.gutter as string);
-      declarations.push({ property: "gap", value: `var(${gutterVar})` });
+      declarations.push({ property: "gap", value: resolveVarRef(gutterVar) });
     }
 
     if (declarations.length) {

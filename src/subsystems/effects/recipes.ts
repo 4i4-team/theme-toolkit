@@ -39,10 +39,11 @@ export const interpretEffectsRecipeVariant = (
   const prefix = (context.options as { prefix?: string } | undefined)?.prefix ?? "";
   const resolve = createEffectsCssVariableResolver(prefix);
 
-  const base = resolveRecipeProps(variant.base, resolve);
+  const varRef = context.resolveVariableReference;
+  const base = resolveRecipeProps(variant.base, resolve, varRef);
 
   const responsive = variant.responsive.map(entry => {
-    const overrides = resolveRecipeProps(entry as Record<string, string>, resolve, true);
+    const overrides = resolveRecipeProps(entry as Record<string, string>, resolve, varRef, true);
     return {
       ...overrides,
       breakpoint: entry.breakpoint,
@@ -59,6 +60,7 @@ export const interpretEffectsRecipeVariant = (
 const resolveRecipeProps = (
   props: Record<string, string>,
   resolve: (propertyKey: string, variant: string) => string,
+  resolveVariableReference: (varName: string) => string,
   skipReserved = false,
 ): RecipeStyleBlock => {
   const styles: RecipeStyleBlock = {};
@@ -70,9 +72,9 @@ const resolveRecipeProps = (
 
     const resolveKey = RESOLVE_KEY_MAP[key];
     if (key === "blur") {
-      styles[cssProperty] = `blur(var(${resolve(resolveKey, value)}))`;
+      styles[cssProperty] = `blur(${resolveVariableReference(resolve(resolveKey, value))})`;
     } else {
-      styles[cssProperty] = `var(${resolve(resolveKey, value)})`;
+      styles[cssProperty] = resolveVariableReference(resolve(resolveKey, value));
     }
   }
 

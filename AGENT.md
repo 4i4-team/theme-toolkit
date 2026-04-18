@@ -30,15 +30,15 @@ src/
                            responsive expansion, IR types, renderer, recipes,
                            recipe resolver, cache, getters)
     media/                 plain MediaDescriptor (breakpoint → query string)
-    theme/                 createTheme + SubsystemHelper contract types
+    theme/                 createTheme, ThemeAdapter interface, default CSS adapter
   subsystems/              domain subsystems (plug into the core pipeline)
     colors/                reference implementation (fully ported to new contract)
     typography/            fully ported to new contract
     layout/                fully ported to new contract
     effects/               fully ported to new contract
     components/            composition subsystem (cross-subsystem recipe references)
-  adapters/                framework-specific wrappers
-    styled-components/     SC DefaultTheme augmentation
+  adapters/                framework-specific wrappers (opt-in via adapter option)
+    styled-components/     SC adapter, media templates, typography mixin
 ```
 
 **Dependency rule:** subsystems import from core; adapters import from either; nothing imports upward. `core/common` and `core/media` have zero framework imports.
@@ -136,7 +136,20 @@ media.between("sm","lg") // half-open upper bound
 
 Callables (`min`, `max`, `exact`, `between`) accept an optional `options` parameter with `orientation?: "landscape" | "portrait"` to compose orientation into the query.
 
-The SC-wrapped version (`subsystems/media/templates.ts`) turns these strings into tagged-template functions. That wrapping is an adapter concern, not core.
+By default, `createTheme` returns this plain `MediaDescriptor` on `theme.media`. The SC adapter (`createStyledComponentsAdapter()`) wraps it with tagged-template functions so `theme.media.md.min\`...\`` works in styled-components.
+
+### Adapter system
+
+`createTheme` accepts an optional `adapter` option controlling output rendering. The adapter interface:
+
+| Hook | Default | Description |
+|---|---|---|
+| `renderCss(nodes)` | `renderToCssString` | Converts IR to output string |
+| `resolveVariableReference(varName)` | `` `var(${varName})` `` | Wraps variable names for declarations |
+| `wrapMedia(descriptor)` | passthrough | Transforms MediaDescriptor |
+| `extend?(theme)` | none | Attaches extra utilities to theme root |
+
+The default CSS adapter is used when no adapter is passed. The SC adapter wraps media with tagged templates. Custom adapters can target SASS, LESS, React Native, etc.
 
 ### Responsive model
 

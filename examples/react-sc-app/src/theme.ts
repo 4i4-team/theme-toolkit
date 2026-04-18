@@ -1,4 +1,4 @@
-import { createTheme } from "@4i4/theme-toolkit";
+import { createTheme, createStyledComponentsAdapter } from "@4i4/theme-toolkit";
 
 export const rawTheme = {
   breakpoints: { sm: 576, md: 768, lg: 1024, xl: 1280 },
@@ -148,4 +148,7 @@ export const options = {
   components: { prefix: "app", classPrefix: "app" },
 };
 
-export const theme = createTheme(rawTheme, options);
+export const theme = createTheme(rawTheme, {
+  ...options,
+  adapter: createStyledComponentsAdapter(),
+});

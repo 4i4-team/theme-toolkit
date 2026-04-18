@@ -30,10 +30,11 @@ export const interpretTypographyRecipeVariant = (
   const prefix = (context.options as { prefix?: string } | undefined)?.prefix ?? "";
   const resolve = createTypographyCssVariableResolver(prefix);
 
-  const base = resolveRecipeProps(variant.base, resolve);
+  const varRef = context.resolveVariableReference;
+  const base = resolveRecipeProps(variant.base, resolve, varRef);
 
   const responsive = variant.responsive.map(entry => {
-    const overrides = resolveRecipeProps(entry as Record<string, string>, resolve, true);
+    const overrides = resolveRecipeProps(entry as Record<string, string>, resolve, varRef, true);
     return {
       ...overrides,
       breakpoint: entry.breakpoint,
@@ -50,6 +51,7 @@ export const interpretTypographyRecipeVariant = (
 const resolveRecipeProps = (
   props: Record<string, string>,
   resolve: (propertyKey: string, variant: string) => string,
+  resolveVariableReference: (varName: string) => string,
   skipReserved = false,
 ): RecipeStyleBlock => {
   const styles: RecipeStyleBlock = {};
@@ -58,7 +60,7 @@ const resolveRecipeProps = (
     if (!value || (skipReserved && RESERVED_KEYS.has(key))) continue;
     const cssProperty = PROPERTY_CSS_MAP[key];
     if (!cssProperty) continue;
-    styles[cssProperty] = `var(${resolve(key, value)})`;
+    styles[cssProperty] = resolveVariableReference(resolve(key, value));
   }
 
   return styles;

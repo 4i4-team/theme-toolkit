@@ -1,15 +1,12 @@
-import { media } from "../../adapters/styled-components/media";
-import type {
-  ThemeWithMedia,
-} from "../../adapters/styled-components/media";
 import type { MediaConfig } from "../media";
+import type { ThemeAdapter } from "./adapter";
+import { createCssAdapter } from "./cssAdapter";
 import type { Breakpoints, CssNode, CssRuleNode, CssVariablesNode, NormalizedPropertyValue, NormalizedRecipeGroup } from "../common";
 import {
   normalizePropertyValue,
   validateNormalizedResponsiveRefs,
   generateTokens,
   generateCssVariables,
-  renderToCssString,
   normalizeCssVariablePrefix,
   expandResponsiveCssVariables,
   normalizeRecipeGroup,
@@ -65,7 +62,6 @@ import {
   resolveComponentReferences,
 } from "../../subsystems/components";
 import type { ComponentsSource, ComponentsBuilderOptions, ResolvedComponentClass } from "../../subsystems/components";
-import type { MediaHelpers } from "../../adapters/styled-components/media";
 import type { PropertyValue } from "../common";
 
 type ColorsSubsystemSource<TPaletteKey extends string, TBreakpoint extends string> =
@@ -80,6 +76,10 @@ type ThemeWithBreakpoints<T extends string, TPaletteKey extends string> = {
   layout?: LayoutSource;
   effects?: EffectsSource;
   components?: ComponentsSource;
+};
+
+type ThemeWithMedia<T extends string> = {
+  readonly media: unknown;
 };
 
 type PaletteComputedProperties<TPaletteKey extends string, TBreakpoint extends string> = {
@@ -168,6 +168,7 @@ type PaletteRecipeOutput<TBreakpoint extends string> = {
 };
 
 type CreateThemeOptions = {
+  adapter?: ThemeAdapter;
   media?: MediaConfig;
   palette?: PaletteBuilderOptions;
   typography?: { unit?: "px" | "rem"; prefix?: string };
@@ -204,6 +205,7 @@ export function createTheme<
   ThemeWithEffects &
   ThemeWithComponents &
   ThemeWithAggregateCss {
+  const adapter = options?.adapter ?? createCssAdapter();
   const paletteHelper = createPaletteThemeHelper();
   const clone = { ...theme } as TTheme &
     ThemeWithMedia<T> &
@@ -348,8 +350,8 @@ export function createTheme<
 
   let cachedBreakpoints = clone.breakpoints;
   let cachedMediaConfig = resolveMediaConfig(clone, options?.media);
-  let cachedMedia = media(cachedBreakpoints, cachedMediaConfig);
   let cachedMediaDescriptor = buildMediaDescriptorInstance(cachedBreakpoints, cachedMediaConfig);
+  let cachedMedia = adapter.wrapMedia(cachedMediaDescriptor);
   let rawColorsSource: ColorsSubsystemSource<TPaletteKey, T> | undefined = clone.colors;
   let cachedColorsInput: ColorsSubsystemSource<TPaletteKey, T> | undefined = rawColorsSource;
   let cachedPaletteSource = extractPaletteProperties(cachedColorsInput);
@@ -406,6 +408,7 @@ export function createTheme<
             tokens,
             breakpoints,
             resolveCssVariable,
+            resolveVariableReference: adapter.resolveVariableReference,
             resolveRecipeVariant: resolve as any,
             groupPath,
           }) as any,
@@ -562,6 +565,7 @@ export function createTheme<
             tokens: cachedTypographyTokens,
             breakpoints: clone.breakpoints,
             resolveCssVariable: createTypographyCssVariableResolver(typographyOptions?.prefix ?? ""),
+            resolveVariableReference: adapter.resolveVariableReference,
             resolveRecipeVariant: resolve as any,
             groupPath,
             options: typographyOptions,
@@ -672,18 +676,18 @@ export function createTheme<
     if (rawLayoutSource?.columns) {
       const { variables, rules } = buildColumnsNodes(
         rawLayoutSource.columns, layoutOptions?.prefix ?? "", layoutClassPrefix,
-        clone.breakpoints, mediaDesc,
+        clone.breakpoints, mediaDesc, adapter.resolveVariableReference,
       );
       allVars.push(...variables);
       allRules.push(...rules);
     }
 
-    allRules.push(...buildGridNodes(rawLayoutSource?.grids, layoutClassPrefix, mediaDesc, spacingResolver));
-    allRules.push(...buildStackNodes(rawLayoutSource?.stacks, layoutClassPrefix, mediaDesc, spacingResolver));
+    allRules.push(...buildGridNodes(rawLayoutSource?.grids, layoutClassPrefix, mediaDesc, spacingResolver, adapter.resolveVariableReference));
+    allRules.push(...buildStackNodes(rawLayoutSource?.stacks, layoutClassPrefix, mediaDesc, spacingResolver, adapter.resolveVariableReference));
 
     const { variables: containerVars, rules: containerRules } = buildContainerNodes(
       rawLayoutSource?.container as any, layoutOptions?.prefix ?? "", layoutClassPrefix,
-      clone.breakpoints, mediaDesc, spacingResolver,
+      clone.breakpoints, mediaDesc, spacingResolver, adapter.resolveVariableReference,
     );
     allVars.push(...containerVars);
     allRules.push(...containerRules);
@@ -711,6 +715,7 @@ export function createTheme<
             tokens: cachedLayoutTokens,
             breakpoints: clone.breakpoints,
             resolveCssVariable: createLayoutCssVariableResolver(layoutOptions?.prefix ?? ""),
+            resolveVariableReference: adapter.resolveVariableReference,
             resolveRecipeVariant: resolve as any,
             groupPath,
             options: layoutOptions,
@@ -819,8 +824,8 @@ export function createTheme<
     if (currentBreakpoints !== cachedBreakpoints || configChanged) {
       cachedBreakpoints = currentBreakpoints;
       cachedMediaConfig = currentConfig;
-      cachedMedia = media(currentBreakpoints, currentConfig);
       cachedMediaDescriptor = buildMediaDescriptorInstance(currentBreakpoints, currentConfig);
+      cachedMedia = adapter.wrapMedia(cachedMediaDescriptor);
     }
   };
 
@@ -1086,6 +1091,7 @@ export function createTheme<
             tokens: cachedEffectsTokens,
             breakpoints: clone.breakpoints,
             resolveCssVariable: createEffectsCssVariableResolver(effectsOptions?.prefix ?? ""),
+            resolveVariableReference: adapter.resolveVariableReference,
             resolveRecipeVariant: resolve as any,
             groupPath,
             options: effectsOptions,
@@ -1190,6 +1196,7 @@ export function createTheme<
             tokens: {},
             breakpoints: clone.breakpoints,
             resolveCssVariable: (() => "") as any,
+            resolveVariableReference: adapter.resolveVariableReference,
             resolveRecipeVariant: resolve as any,
             groupPath,
             options: componentsOptions,
@@ -1281,11 +1288,23 @@ export function createTheme<
 
   Object.defineProperty(clone, "css", {
     get() {
-      return renderToCssString(collectNodes());
+      return adapter.renderCss(collectNodes());
     },
     enumerable: true,
     configurable: true,
   });
+
+  if (adapter.extend) {
+    const extras = adapter.extend(clone as Record<string, unknown>);
+    for (const [key, value] of Object.entries(extras)) {
+      Object.defineProperty(clone, key, {
+        value,
+        enumerable: true,
+        configurable: true,
+        writable: true,
+      });
+    }
+  }
 
   return clone as unknown as TTheme &
     ThemeWithMedia<T> &

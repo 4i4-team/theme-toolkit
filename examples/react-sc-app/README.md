@@ -4,6 +4,7 @@ React + Vite + styled-components — demonstrates all SC adapter integration pat
 
 ## What to look for
 
+- **`src/theme.ts`** — passes `adapter: createStyledComponentsAdapter()` to `createTheme`. This enables SC media templates on `theme.media`.
 - **`src/main.tsx`** — `ThemeProvider` wraps the app, `GlobalStyles` injects `theme.css` via `createGlobalStyle`.
 - **`src/styled.d.ts`** — `DefaultTheme` augmentation so SC interpolations are typed.
 - **`src/components/`** — each styled component in its own file.

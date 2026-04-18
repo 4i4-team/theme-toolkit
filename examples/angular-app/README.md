@@ -19,7 +19,7 @@ Angular 19 standalone components — no adapters, no SC, just DI + class binding
 2. **`[class]` binding** — recipe class names applied directly to elements.
 3. **`[style.*]` binding** — direct token values used for dynamic inline styles.
 4. **CSS variables in component styles** — `var(--app-*)` in `styles: [...]` blocks.
-5. **No adapter needed** — the toolkit's output (CSS strings + class names + token objects) works natively with Angular.
+5. **No adapter needed** — uses the default `createTheme()` with no `adapter` option. The toolkit's output (CSS strings + class names + token objects) works natively with Angular.
 
 ## Run
 

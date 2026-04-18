@@ -2,13 +2,29 @@
 
 Framework-specific wrappers that bridge theme-kit's output into styled-components idioms: tagged-template media queries, typography mixins, and `DefaultTheme` augmentation.
 
-**Files:** `src/adapters/styled-components/` — `media.ts`, `typography.ts`, `types.ts`.
+**Files:** `src/adapters/styled-components/` — `adapter.ts`, `media.ts`, `typography.ts`, `types.ts`.
 
 ---
 
 ## Setup
 
-### 1. Inject theme CSS
+### 1. Enable the SC adapter
+
+Pass `createStyledComponentsAdapter()` to `createTheme` so `theme.media` returns SC tagged template functions:
+
+```ts
+// src/theme.ts
+import { createTheme, createStyledComponentsAdapter } from "@theme-registry/theme-kit";
+
+export const theme = createTheme(rawTheme, {
+  ...options,
+  adapter: createStyledComponentsAdapter(),
+});
+```
+
+Without the adapter, `theme.media.md.min` is a plain string (`"@media (min-width: 768px)"`). With the adapter, it becomes a tagged template function that wraps styles in the media query.
+
+### 2. Inject theme CSS
 
 `theme.css` contains all generated CSS custom properties and recipe classes. Inject it once via `createGlobalStyle`:
 
@@ -21,7 +37,7 @@ const GlobalStyles = createGlobalStyle`
 `;
 ```
 
-### 2. Provide the theme
+### 3. Provide the theme
 
 Pass the theme object to `ThemeProvider` so styled-components can access it:
 
@@ -38,7 +54,7 @@ function App() {
 }
 ```
 
-### 3. Augment DefaultTheme
+### 4. Augment DefaultTheme
 
 Create a `styled.d.ts` file so TypeScript knows the shape of `theme` inside styled-components interpolations:
 
@@ -288,7 +304,8 @@ const StyledButton = styled.button`
 
 | Export | Type | Description |
 |---|---|---|
-| `media(breakpoints, config?)` | function | Creates SC-wrapped media descriptor |
+| `createStyledComponentsAdapter()` | function | Creates the SC adapter for `createTheme` |
+| `media(breakpoints, config?)` | function | Creates SC-wrapped media descriptor (standalone) |
 | `breakpoint({ min?, max?, config? })` | function | Creates standalone media group |
 | `wrapMediaDescriptor(descriptor)` | function | Wraps a plain `MediaDescriptor` for SC |
 | `wrapMediaGroup(group)` | function | Wraps a single `MediaGroupDescriptor` |
@@ -298,4 +315,3 @@ const StyledButton = styled.button`
 | `WrappedMediaGroup` | type | SC media group type (min/max/exact) |
 | `MediaHelpers<T>` | type | Alias for `WrappedMediaDescriptor<T>` |
 | `MediaGroup` | type | Alias for `WrappedMediaGroup` |
-| `ThemeWithMedia<T>` | type | `{ readonly media: MediaHelpers<T> }` |

@@ -26,6 +26,8 @@ Each app depends on the local workspace version of the toolkit via a `file:../..
 
 ## Legacy examples
 
+These examples use the previous API where `createTheme` auto-imported styled-components. Use `react-sc-app` instead — it shows the new adapter-based integration with `createStyledComponentsAdapter()`.
+
 | Example | Notes |
 |---|---|
 | [`media-app`](media-app/) | Old media helpers demo — predates the current architecture |

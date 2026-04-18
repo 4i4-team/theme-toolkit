@@ -54,6 +54,8 @@ export type RecipeInterpretContext<TBreakpoint extends string> = {
   tokens: unknown;
   breakpoints: Record<TBreakpoint, number>;
   resolveCssVariable: ResolveCssVariableName;
+  /** Wrap a CSS variable name for use in declarations (e.g. `var(--name)` or `$name`). */
+  resolveVariableReference: (variableName: string) => string;
   resolveRecipeVariant: (variantName: string) => InterpretedRecipeVariant<TBreakpoint>;
   groupPath: string;
   options?: unknown;

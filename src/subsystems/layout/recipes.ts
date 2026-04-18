@@ -26,10 +26,11 @@ export const interpretLayoutRecipeVariant = (
   const prefix = (context.options as { prefix?: string } | undefined)?.prefix ?? "";
   const resolve = createLayoutCssVariableResolver(prefix);
 
-  const base = resolveRecipeProps(variant.base, resolve);
+  const varRef = context.resolveVariableReference;
+  const base = resolveRecipeProps(variant.base, resolve, varRef);
 
   const responsive = variant.responsive.map(entry => {
-    const overrides = resolveRecipeProps(entry as Record<string, string>, resolve, true);
+    const overrides = resolveRecipeProps(entry as Record<string, string>, resolve, varRef, true);
     return {
       ...overrides,
       breakpoint: entry.breakpoint,
@@ -46,6 +47,7 @@ export const interpretLayoutRecipeVariant = (
 const resolveRecipeProps = (
   props: Record<string, string>,
   resolve: (propertyKey: string, variant: string) => string,
+  resolveVariableReference: (varName: string) => string,
   skipReserved = false,
 ): RecipeStyleBlock => {
   const styles: RecipeStyleBlock = {};
@@ -56,7 +58,7 @@ const resolveRecipeProps = (
     const cssProperties = PROPERTY_CSS_MAP[key];
     if (!cssProperties) continue;
 
-    const resolved = key === "background" ? value : `var(${resolve("spacing", value)})`;
+    const resolved = key === "background" ? value : resolveVariableReference(resolve("spacing", value));
     for (const prop of cssProperties) {
       styles[prop] = resolved;
     }

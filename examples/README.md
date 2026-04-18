@@ -1,21 +1,30 @@
 # Examples
 
-Each subsystem ships a runnable Vite + React sample you can bootstrap locally:
+Runnable Vite apps demonstrating each subsystem and integration pattern.
 
-| Example | Description |
-|---------|-------------|
-| [`media-app`](media-app) | Demonstrates `@4i4/theme-toolkit/media` helpers (`mediaQuery`, `DEFAULT_BREAKPOINTS`). |
-| [`colors-app`](colors-app) | Builds palette tokens and injects the generated CSS variables. |
-| [`layout-app`](layout-app) | Uses `buildGridTokens` directly, applying container/column/style mixins without a ThemeProvider. |
-| [`typography-app`](typography-app) | Generates typography tokens + mixins and renders semantic text styles. |
-| [`theme-app`](theme-app) | Full `createTheme` example combining palette, typography, layout, and media helpers inside styled-components. |
+| Example | Stack | Description |
+|---|---|---|
+| [`colors-app`](colors-app/) | vanilla TS | Palette swatches, step generation, recipe buttons |
+| [`typography-app`](typography-app/) | vanilla TS | Type scale, font variants, recipe text samples |
+| [`layout-app`](layout-app/) | vanilla TS | Spacing, containers, columns, grids, stacks |
+| [`effects-app`](effects-app/) | vanilla TS | Radius, shadow, opacity, border width, outline |
+| [`components-app`](components-app/) | vanilla TS | Cross-subsystem recipe composition |
+| [`react-app`](react-app/) | React | Bare React, className-based, no styled-components |
+| [`react-sc-app`](react-sc-app/) | React + SC | Media templates, typographyMixin, direct tokens, CSS vars |
 
-To run any sample:
+## Run any example
 
 ```bash
-cd examples/<example>-app
+cd examples/<name>
 npm install
 npm run dev
 ```
 
-Each app depends on the local workspace version of `@4i4/theme-toolkit` via a `file:` reference.
+Each app depends on the local workspace version of the toolkit via a `file:../..` reference.
+
+## Legacy examples
+
+| Example | Notes |
+|---|---|
+| [`media-app`](media-app/) | Old media helpers demo — predates the current architecture |
+| [`theme-app`](theme-app/) | Old `createTheme` demo with SC — uses the legacy API |

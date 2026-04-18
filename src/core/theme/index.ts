@@ -980,7 +980,7 @@ export function createTheme<
         syncTypography();
         const extras = typographyHelper.buildSlice
           ? typographyHelper.buildSlice({
-              source: extractTypographyProperties(rawTypographySource),
+              source: rawTypographySource,
               tokens: cachedTypographyTokens,
               variableNodes: cachedTypographyVariables,
               recipes: { nodes: cachedTypographyRecipes.nodes, classes: cachedTypographyRecipes.classes },

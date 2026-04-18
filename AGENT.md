@@ -10,12 +10,15 @@ Design-token engine and recipe system for building framework-agnostic UI kits. T
 - [`docs/layout/README.md`](docs/layout/README.md) — layout subsystem reference: spacing, gutters, aspectRatio, container (3 modes), columns, grids, stacks, recipes.
 - [`docs/effects/README.md`](docs/effects/README.md) — effects subsystem reference: radius, shadow, blur, zIndex, opacity, outline, borderWidth, transitions, recipes.
 - [`docs/components/README.md`](docs/components/README.md) — components (composition) subsystem reference: cross-subsystem recipe references, delta classes, resolved class names.
+- [`docs/adapters/styled-components/README.md`](docs/adapters/styled-components/README.md) — SC adapter reference: media templates, typographyMixin, ThemeAugmentation, three integration patterns.
 - [`README.md`](README.md) — quick start and public API overview.
 - [`examples/colors-app`](examples/colors-app/) — vanilla TS colors example.
 - [`examples/typography-app`](examples/typography-app/) — vanilla TS typography example.
 - [`examples/layout-app`](examples/layout-app/) — vanilla TS layout example.
 - [`examples/effects-app`](examples/effects-app/) — vanilla TS effects example.
 - [`examples/components-app`](examples/components-app/) — vanilla TS components (composition) example.
+- [`examples/react-app`](examples/react-app/) — React example (bare, no styled-components).
+- [`examples/react-sc-app`](examples/react-sc-app/) — React + styled-components example.
 
 ## Source structure
 

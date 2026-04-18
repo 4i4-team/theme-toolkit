@@ -88,6 +88,16 @@ Each property supports the full `PropertyValue` contract: `base`, `variants`, `r
 
 ## fontSize scale generation
 
+`ratio` is **optional**. Without it, fontSize works like any other property — just base + explicit variants:
+
+```ts
+// No scale — explicit variants only
+fontSize: { base: 16, variants: { sm: 14, lg: 20, xl: 24 } }
+
+// Or just a primitive
+fontSize: 16
+```
+
 When `ratio` is set, fontSize auto-generates scale variants during normalization:
 
 ```ts

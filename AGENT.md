@@ -158,7 +158,7 @@ See [`docs/colors/README.md`](docs/colors/README.md) for the complete reference.
 The typography subsystem (`src/subsystems/typography/`) follows the same PropertyValue pattern as colors. Nine properties, each with base + variants:
 
 - **Properties:** `fontFamily`, `fontSize`, `fontWeight`, `lineHeight`, `letterSpacing`, `fontStyle`, `textTransform`, `textDecoration`, `textAlign`.
-- **fontSize scale:** when `ratio` is set (e.g., `"major-third"`), auto-generates scale variants (xs→4xl) during normalization. Each value = `base * ratio^step`. Custom `algorithm: (base, key, step, prev) => number` can override.
+- **fontSize scale:** `ratio` is optional. Without it, fontSize works like any other property (just base + explicit variants). When set (e.g., `"major-third"`), auto-generates scale variants (xs→4xl) during normalization. Custom `algorithm: (base, key, step, prev) => number` can override.
 - **Unit handling:** `options.typography.unit` controls fontSize output — `"px"` (default) or `"rem"` (divided by baseFontSize).
 - **Recipes:** reference property variants by name: `{ fontFamily: "heading", fontSize: "xl" }` → `font-family: var(--prefix-font-family--heading); font-size: var(--prefix-font-size--xl)`.
 - **All hooks:** `normalizeProperty` (scale generation), `tokenizeProperty`, `mapCssVariables` (with unit), `interpretRecipe`, `buildSlice` (returns `style()` utility).

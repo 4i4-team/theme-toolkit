@@ -146,7 +146,7 @@ export const options = {
   components: { prefix: 'app', classPrefix: 'app' },
 };
 
-export const theme = createTheme(rawTheme as any, options);
+export const theme = createTheme(rawTheme, options);
 
 export type AppTheme = typeof theme;
 

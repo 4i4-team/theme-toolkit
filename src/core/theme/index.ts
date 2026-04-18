@@ -64,22 +64,23 @@ import {
 import type { ComponentsSource, ComponentsBuilderOptions, ResolvedComponentClass } from "../../subsystems/components";
 import type { PropertyValue } from "../common";
 
-type ColorsSubsystemSource<TPaletteKey extends string, TBreakpoint extends string> =
-  Record<TPaletteKey, PaletteSource> & {
-    recipes?: PaletteRecipeSource<TBreakpoint>;
-  };
+type ColorsSubsystemSource<TBreakpoint extends string> = {
+  [key: string]: PaletteSource | PaletteRecipeSource<TBreakpoint> | undefined;
+} & {
+  recipes?: PaletteRecipeSource<TBreakpoint>;
+};
 
 type ThemeWithBreakpoints<T extends string, TPaletteKey extends string> = {
   breakpoints: Breakpoints<T>;
   typography?: TypographySource;
-  colors?: ColorsSubsystemSource<TPaletteKey, T>;
+  colors?: ColorsSubsystemSource<T>;
   layout?: LayoutSource;
   effects?: EffectsSource;
   components?: ComponentsSource;
 };
 
 type ThemeWithMedia<T extends string> = {
-  readonly media: unknown;
+  readonly media: MediaDescriptor<T>;
 };
 
 type PaletteComputedProperties<TPaletteKey extends string, TBreakpoint extends string> = {
@@ -115,7 +116,7 @@ type TypographyComputedProperties = {
   style: (group: string, variant: string) => Record<string, string>;
 };
 
-type TypographyThemeSlice = Record<string, unknown> & TypographyComputedProperties;
+type TypographyThemeSlice = TypographySource & TypographyComputedProperties;
 
 type ThemeWithTypography = {
   typography: TypographyThemeSlice;
@@ -129,7 +130,7 @@ type LayoutComputedProperties = {
   getClass: (group: string, variant: string) => string | undefined;
 };
 
-type LayoutThemeSlice = Record<string, unknown> & LayoutComputedProperties;
+type LayoutThemeSlice = LayoutSource & LayoutComputedProperties;
 
 type ThemeWithLayout = {
   layout: LayoutThemeSlice;
@@ -143,7 +144,7 @@ type EffectsComputedProperties = {
   getClass: (group: string, variant: string) => string | undefined;
 };
 
-type EffectsThemeSlice = Record<string, unknown> & EffectsComputedProperties;
+type EffectsThemeSlice = EffectsSource & EffectsComputedProperties;
 
 type ThemeWithEffects = {
   effects: EffectsThemeSlice;
@@ -155,7 +156,7 @@ type ComponentsComputedProperties = {
   getClass: (group: string, variant: string) => string | undefined;
 };
 
-type ComponentsThemeSlice = Record<string, unknown> & ComponentsComputedProperties;
+type ComponentsThemeSlice = ComponentsSource & ComponentsComputedProperties;
 
 type ThemeWithComponents = {
   components: ComponentsThemeSlice;
@@ -217,7 +218,7 @@ export function createTheme<
     ThemeWithAggregateCss;
 
   const extractPaletteProperties = (
-    source: ColorsSubsystemSource<TPaletteKey, T> | undefined,
+    source: ColorsSubsystemSource<T> | undefined,
   ): PaletteCollection<TPaletteKey> | undefined => {
     if (!source) return undefined;
     const { recipes: _recipes, ...properties } = source as Record<string, unknown>;
@@ -352,8 +353,8 @@ export function createTheme<
   let cachedMediaConfig = resolveMediaConfig(clone, options?.media);
   let cachedMediaDescriptor = buildMediaDescriptorInstance(cachedBreakpoints, cachedMediaConfig);
   let cachedMedia = adapter.wrapMedia(cachedMediaDescriptor);
-  let rawColorsSource: ColorsSubsystemSource<TPaletteKey, T> | undefined = clone.colors;
-  let cachedColorsInput: ColorsSubsystemSource<TPaletteKey, T> | undefined = rawColorsSource;
+  let rawColorsSource: ColorsSubsystemSource<T> | undefined = clone.colors;
+  let cachedColorsInput: ColorsSubsystemSource<T> | undefined = rawColorsSource;
   let cachedPaletteSource = extractPaletteProperties(cachedColorsInput);
   let cachedPaletteBreakpoints = clone.breakpoints;
   let cachedNormalizedPalette = normalizePaletteCollection(
@@ -941,7 +942,7 @@ export function createTheme<
     get() {
       return cachedColorsSlice;
     },
-    set(value: ColorsSubsystemSource<TPaletteKey, T> | undefined) {
+    set(value: ColorsSubsystemSource<T> | undefined) {
       rawColorsSource = value;
       cachedColorsSlice = buildColorsSlice();
     },

@@ -10,7 +10,7 @@ export type ResponsiveOrientation = "landscape" | "portrait";
 
 export type ResponsiveOverride<
   TValue,
-  TExtra extends Record<string, unknown> = Record<string, never>,
+  TExtra extends Record<string, unknown> = {},
   TBreakpoint extends string = string,
 > = {
   breakpoint: TBreakpoint;
@@ -22,7 +22,7 @@ export type ResponsiveOverride<
 
 export type NormalizedResponsiveOverride<
   TValue,
-  TExtra extends Record<string, unknown> = Record<string, never>,
+  TExtra extends Record<string, unknown> = {},
   TBreakpoint extends string = string,
 > = Omit<ResponsiveOverride<TValue, TExtra, TBreakpoint>, "query"> & {
   query: ResponsiveQuery;
@@ -30,13 +30,13 @@ export type NormalizedResponsiveOverride<
 
 export type VariantValue<
   TValue,
-  TExtra extends Record<string, unknown> = Record<string, never>,
+  TExtra extends Record<string, unknown> = {},
   TBreakpoint extends string = string,
 > = TValue | ({ base: TValue } & TExtra);
 
 export type ExtendedProperty<
   TValue,
-  TExtra extends Record<string, unknown> = Record<string, never>,
+  TExtra extends Record<string, unknown> = {},
   TBreakpoint extends string = string,
 > = {
   base: TValue;
@@ -46,13 +46,13 @@ export type ExtendedProperty<
 
 export type PropertyValue<
   TValue,
-  TExtra extends Record<string, unknown> = Record<string, never>,
+  TExtra extends Record<string, unknown> = {},
   TBreakpoint extends string = string,
 > = TValue | ExtendedProperty<TValue, TExtra, TBreakpoint>;
 
 export type NormalizedVariantValue<
   TValue,
-  TExtra extends Record<string, unknown> = Record<string, never>,
+  TExtra extends Record<string, unknown> = {},
   TBreakpoint extends string = string,
 > = {
   base: TValue;
@@ -60,7 +60,7 @@ export type NormalizedVariantValue<
 
 export type NormalizedPropertyValue<
   TValue,
-  TExtra extends Record<string, unknown> = Record<string, never>,
+  TExtra extends Record<string, unknown> = {},
   TBreakpoint extends string = string,
 > = {
   base: TValue;

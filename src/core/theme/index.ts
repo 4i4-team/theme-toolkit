@@ -55,6 +55,11 @@ import {
   buildContainerNodes,
 } from "../../subsystems/layout";
 import type { LayoutSource, LayoutTokens as LayoutTokensType, LayoutBuilderOptions } from "../../subsystems/layout";
+import {
+  createEffectsThemeHelper,
+  createEffectsCssVariableResolver,
+} from "../../subsystems/effects";
+import type { EffectsSource, EffectsTokens as EffectsTokensType, EffectsBuilderOptions } from "../../subsystems/effects";
 import type { MediaHelpers } from "../../adapters/styled-components/media";
 import type { PropertyValue } from "../common";
 
@@ -68,6 +73,7 @@ type ThemeWithBreakpoints<T extends string, TPaletteKey extends string> = {
   typography?: TypographySource;
   colors?: ColorsSubsystemSource<TPaletteKey, T>;
   layout?: LayoutSource;
+  effects?: EffectsSource;
 };
 
 type PaletteComputedProperties<TPaletteKey extends string, TBreakpoint extends string> = {
@@ -123,6 +129,20 @@ type ThemeWithLayout = {
   layout: LayoutThemeSlice;
 };
 
+type EffectsComputedProperties = {
+  readonly tokens: EffectsTokensType;
+  readonly variables: CssVariablesNode[];
+  readonly nodes: CssNode[];
+  readonly classes: Record<string, Record<string, string>>;
+  getClass: (group: string, variant: string) => string | undefined;
+};
+
+type EffectsThemeSlice = Record<string, unknown> & EffectsComputedProperties;
+
+type ThemeWithEffects = {
+  effects: EffectsThemeSlice;
+};
+
 type PaletteRecipeOutput<TBreakpoint extends string> = {
   nodes: CssRuleNode[];
   classes: Record<string, Record<string, string>>;
@@ -134,6 +154,7 @@ type CreateThemeOptions = {
   palette?: PaletteBuilderOptions;
   typography?: { unit?: "px" | "rem"; prefix?: string };
   layout?: LayoutBuilderOptions;
+  effects?: EffectsBuilderOptions;
 };
 
 const resolveMediaConfig = <T extends string, TPaletteKey extends string, TTheme extends ThemeWithBreakpoints<T, TPaletteKey>>(
@@ -161,6 +182,7 @@ export function createTheme<
   ThemeWithPalette<TPaletteKey, T> &
   ThemeWithTypography &
   ThemeWithLayout &
+  ThemeWithEffects &
   ThemeWithAggregateCss {
   const paletteHelper = createPaletteThemeHelper();
   const clone = { ...theme } as TTheme &
@@ -169,6 +191,7 @@ export function createTheme<
     ThemeWithPalette<TPaletteKey, T> &
     ThemeWithTypography &
     ThemeWithLayout &
+    ThemeWithEffects &
     ThemeWithAggregateCss;
 
   const extractPaletteProperties = (
@@ -970,6 +993,145 @@ export function createTheme<
     configurable: true,
   });
 
+  // --- Effects subsystem ---
+  const effectsHelper = createEffectsThemeHelper();
+  const effectsOptions = options?.effects as EffectsBuilderOptions | undefined;
+  let rawEffectsSource = clone.effects as EffectsSource | undefined;
+
+  const EFFECTS_PROPERTY_KEYS = ["radius", "shadow", "blur", "zIndex", "opacity", "outline", "borderWidth", "transitions"];
+  const EFFECTS_RESERVED_KEYS = new Set([...EFFECTS_PROPERTY_KEYS, "recipes"]);
+
+  const extractEffectsProperties = (source: EffectsSource | undefined): Record<string, unknown> | undefined => {
+    if (!source) return undefined;
+    const props: Record<string, unknown> = {};
+    for (const key of EFFECTS_PROPERTY_KEYS) {
+      if ((source as any)[key] !== undefined) props[key] = (source as any)[key];
+    }
+    return Object.keys(props).length ? props : undefined;
+  };
+
+  const normalizeEffectsCollection = (source: EffectsSource | undefined) => {
+    if (!source) return {};
+    const properties = extractEffectsProperties(source);
+    if (!properties) return {};
+    const allowedBreakpoints = Object.keys(clone.breakpoints) as string[];
+    const result: Record<string, NormalizedPropertyValue<unknown>> = {};
+    for (const [name, raw] of Object.entries(properties)) {
+      const base = normalizePropertyValue(raw as any, { propertyPath: `effects.${name}`, allowedBreakpoints });
+      validateNormalizedResponsiveRefs(base as any, { propertyPath: `effects.${name}` });
+      result[name] = base as NormalizedPropertyValue<unknown>;
+    }
+    return result;
+  };
+
+  let cachedNormalizedEffects = normalizeEffectsCollection(rawEffectsSource);
+  let cachedEffectsTokens: EffectsTokensType = generateTokens(cachedNormalizedEffects, ({ name, value }) => {
+    const baseToken = { base: (value as any).base, variants: {} };
+    return effectsHelper.tokenizeProperty
+      ? effectsHelper.tokenizeProperty(name, value as any, baseToken) as any
+      : baseToken;
+  });
+  const effectsPrefix = normalizeCssVariablePrefix(effectsOptions?.prefix);
+  let cachedEffectsVariables: CssVariablesNode[] = (() => {
+    const variables = effectsHelper.mapCssVariables
+      ? effectsHelper.mapCssVariables(cachedEffectsTokens, effectsPrefix)
+      : generateCssVariables(cachedEffectsTokens, { prefix: effectsPrefix });
+    const baseNode: CssVariablesNode[] = Object.keys(variables).length
+      ? [{ kind: "variables" as const, selector: ":root", variables }]
+      : [];
+    const responsiveNodes = expandResponsiveCssVariables(cachedNormalizedEffects as any, {
+      resolveCssVariable: createEffectsCssVariableResolver(effectsOptions?.prefix ?? ""),
+      media: cachedMediaDescriptor,
+      formatValue: (v: unknown) => typeof v === "number" ? `${v}px` : String(v ?? ""),
+    });
+    return [...baseNode, ...responsiveNodes];
+  })();
+
+  let cachedEffectsRecipes: { nodes: CssRuleNode[]; classes: Record<string, Record<string, string>> } = (() => {
+    const recipeSource = rawEffectsSource?.recipes;
+    if (!recipeSource || !Object.keys(recipeSource).length || !effectsHelper.interpretRecipe) {
+      return { nodes: [], classes: {} };
+    }
+    const allowedBreakpoints = Object.keys(clone.breakpoints) as T[];
+    const allNodes: CssRuleNode[] = [];
+    const allClasses: Record<string, Record<string, string>> = {};
+    const effectsClassPrefix = sanitizeIdentifierSegment(effectsOptions?.classPrefix ?? effectsOptions?.prefix ?? "dt-fx") || "dt-fx";
+    for (const [groupName, groupDef] of Object.entries(recipeSource)) {
+      const groupPath = `effects.recipes.${groupName}`;
+      const normalized = normalizeRecipeGroup(groupDef as any, { propertyPath: groupPath, allowedBreakpoints });
+      const resolver = createRecipeVariantResolver(
+        normalized,
+        (variantName, variant, resolve) =>
+          effectsHelper.interpretRecipe!(variantName, variant as any, {
+            tokens: cachedEffectsTokens,
+            breakpoints: clone.breakpoints,
+            resolveCssVariable: createEffectsCssVariableResolver(effectsOptions?.prefix ?? ""),
+            resolveRecipeVariant: resolve as any,
+            groupPath,
+            options: effectsOptions,
+          }) as any,
+        { groupPath },
+      );
+      const interpreted = resolver.resolveAll();
+      const selectorPrefix = `${effectsClassPrefix}-${sanitizeIdentifierSegment(groupName)}`;
+      const { nodes, variants } = generateRecipeCss(interpreted as any, {
+        media: cachedMediaDescriptor as MediaDescriptor<string>,
+        selectorBuilder: variantName => `.${selectorPrefix}-${sanitizeIdentifierSegment(variantName)}`,
+      });
+      allNodes.push(...nodes);
+      const classEntries = assignRecipeClasses(variants, { prefix: selectorPrefix });
+      allClasses[groupName] = classEntries.reduce<Record<string, string>>((acc, entry) => {
+        acc[entry.variant] = entry.className;
+        return acc;
+      }, {});
+    }
+    return { nodes: allNodes, classes: allClasses };
+  })();
+
+  const buildEffectsSlice = (): EffectsThemeSlice => {
+    if (!rawEffectsSource) return {} as unknown as EffectsThemeSlice;
+    const rawProps: Record<string, unknown> = {};
+    for (const key of EFFECTS_RESERVED_KEYS) {
+      if ((rawEffectsSource as any)[key] !== undefined) rawProps[key] = (rawEffectsSource as any)[key];
+    }
+    const slice = { ...rawProps } as EffectsThemeSlice;
+
+    Object.defineProperty(slice, "tokens", {
+      get: () => cachedEffectsTokens,
+      enumerable: true, configurable: true,
+    });
+    Object.defineProperty(slice, "variables", {
+      get: () => cachedEffectsVariables,
+      enumerable: true, configurable: true,
+    });
+    Object.defineProperty(slice, "nodes", {
+      get: () => [...cachedEffectsVariables, ...cachedEffectsRecipes.nodes],
+      enumerable: true, configurable: true,
+    });
+    Object.defineProperty(slice, "classes", {
+      get: () => cachedEffectsRecipes.classes,
+      enumerable: true, configurable: true,
+    });
+    Object.defineProperty(slice, "getClass", {
+      get: () => (group: string, variant: string) => cachedEffectsRecipes.classes[group]?.[variant],
+      enumerable: true, configurable: true,
+    });
+
+    return slice;
+  };
+
+  let cachedEffectsSlice = buildEffectsSlice();
+
+  Object.defineProperty(clone, "effects", {
+    get() { return cachedEffectsSlice; },
+    set(value: EffectsSource | undefined) {
+      rawEffectsSource = value;
+      cachedEffectsSlice = buildEffectsSlice();
+    },
+    enumerable: true,
+    configurable: true,
+  });
+
   const collectNodes = (): CssNode[] => {
     const nodes: CssNode[] = [];
     nodes.push(...getPaletteVariables());
@@ -983,6 +1145,8 @@ export function createTheme<
     nodes.push(...cachedLayoutSpecialNodes.variables);
     nodes.push(...cachedLayoutSpecialNodes.rules);
     nodes.push(...cachedLayoutRecipes.nodes);
+    nodes.push(...cachedEffectsVariables);
+    nodes.push(...cachedEffectsRecipes.nodes);
     return nodes;
   };
 

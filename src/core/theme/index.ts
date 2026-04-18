@@ -188,15 +188,16 @@ const createMissingLayoutHelpers = <T extends string>(): ThemeWithLayout<T> => {
 const convertPropertyValueToTokenMap = (
   input: PropertyValue<number> | undefined,
 ): Record<string, number | { value: number; responsive?: Array<{ breakpoint: string; value: number }> }> | number => {
-  if (input === undefined) return { default: 0 };
-  if (typeof input === "number") return input;
+  if (input === undefined) return { default: 0, none: 0 };
+  if (typeof input === "number") return { default: input, none: 0 };
   const extended = input as { base: number; variants?: Record<string, number | { base: number }>; responsive?: Array<Record<string, unknown>> };
-  const result: Record<string, unknown> = { default: extended.base };
+  const result: Record<string, unknown> = { default: extended.base, none: 0 };
   if (extended.variants) {
     for (const [name, val] of Object.entries(extended.variants)) {
       result[name] = typeof val === "number" ? val : (val as { base: number }).base;
     }
   }
+  result.none = 0;
   if (extended.responsive) {
     for (const entry of extended.responsive) {
       const target = entry.target as string | undefined;

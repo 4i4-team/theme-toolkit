@@ -103,13 +103,16 @@ const gutterSection = document.createElement("section");
 const gutterVariants = tokens?.gutters?.variants ?? {};
 gutterSection.innerHTML = `
   <h2>Gutter tokens</h2>
-  <div style="display:flex;gap:4px">
+  <p style="font-size:0.8rem;color:#666">The green space between boxes represents the gutter value.</p>
+  <div style="display:flex;flex-direction:column;gap:12px">
     ${Object.entries(gutterVariants).map(([name, value]) => {
       const numVal = typeof value === "number" ? value : parseInt(String(value)) || 0;
-      return `<div style="flex:1 1 0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#69db7c;height:80px;overflow:hidden;border-radius:6px">
-        <div style="width:calc(100% - ${numVal * 2}px);height:calc(100% - ${numVal * 2}px);background:#fff;border-radius:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:8px;min-height:8px">
-          <span style="font-size:0.7rem;font-weight:600;color:#1d1d1f">${name}</span>
-          <span style="font-size:0.6rem;color:#666">${numVal}px</span>
+      return `<div>
+        <div style="font-size:0.75rem;font-weight:600;margin-bottom:4px">${name} <span style="font-weight:400;color:#666">(${numVal}px)</span></div>
+        <div style="display:flex;gap:${numVal}px;background:#69db7c;padding:4px;border-radius:6px">
+          <div style="flex:1;height:36px;background:#fff;border-radius:4px"></div>
+          <div style="flex:1;height:36px;background:#fff;border-radius:4px"></div>
+          <div style="flex:1;height:36px;background:#fff;border-radius:4px"></div>
         </div>
       </div>`;
     }).join("")}
@@ -122,11 +125,14 @@ const arSection = document.createElement("section");
 const arVariants = tokens?.aspectRatio?.variants ?? {};
 arSection.innerHTML = `
   <h2>Aspect ratio tokens</h2>
-  <div style="display:flex;gap:8px;flex-wrap:wrap">
-    ${Object.entries(arVariants).map(([name, value]) => {
-      return `<div style="width:120px;aspect-ratio:${value};background:#e9ecef;border:2px solid #adb5bd;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-direction:column">
+  <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:start">
+    ${Object.entries(arVariants).filter(([name]) => name !== "base").map(([name, value]) => {
+      const width = name === "portrait" ? 100 : 160;
+      return `<div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+        <div style="width:${width}px;aspect-ratio:${value};background:#e9ecef;border:2px solid #adb5bd;border-radius:6px;display:flex;align-items:center;justify-content:center">
+          <span style="font-size:0.8rem;color:#495057">${value}</span>
+        </div>
         <span style="font-size:0.75rem;font-weight:600">${name}</span>
-        <span style="font-size:0.65rem;color:#666">${value}</span>
       </div>`;
     }).join("")}
   </div>

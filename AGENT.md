@@ -8,10 +8,12 @@ Design-token engine and recipe system for building framework-agnostic UI kits. T
 - [`docs/colors/README.md`](docs/colors/README.md) — colors subsystem reference: input shapes, steps, recipes, CSS variable naming, helper hooks.
 - [`docs/typography/README.md`](docs/typography/README.md) — typography subsystem reference: 9 PropertyValue properties, fontSize scale generation, recipes, helper hooks.
 - [`docs/layout/README.md`](docs/layout/README.md) — layout subsystem reference: spacing, gutters, aspectRatio, container (3 modes), columns, grids, stacks, recipes.
+- [`docs/effects/README.md`](docs/effects/README.md) — effects subsystem reference: radius, shadow, blur, zIndex, opacity, outline, borderWidth, transitions, recipes.
 - [`README.md`](README.md) — quick start and public API overview.
 - [`examples/colors-app`](examples/colors-app/) — vanilla TS colors example.
 - [`examples/typography-app`](examples/typography-app/) — vanilla TS typography example.
 - [`examples/layout-app`](examples/layout-app/) — vanilla TS layout example.
+- [`examples/effects-app`](examples/effects-app/) — vanilla TS effects example.
 
 ## Source structure
 
@@ -183,9 +185,20 @@ The layout subsystem (`src/subsystems/layout/`) handles spatial structure — sp
 
 See [`docs/layout/README.md`](docs/layout/README.md) for the complete reference.
 
+### Effects subsystem
+
+The effects subsystem (`src/subsystems/effects/`) handles visual effects — all standard PropertyValue properties:
+
+- **Properties:** `radius` (border-radius), `shadow` (box-shadow), `blur` (filter blur), `zIndex`, `opacity`, `outline` (focus ring), `borderWidth`, `transitions`.
+- **Recipes:** compose effects: `{ borderRadius: "lg", boxShadow: "lg" }` → `border-radius: var(--prefix-effects-radius--lg); box-shadow: var(--prefix-effects-shadow--lg)`. `blur` wraps in `blur()` filter function.
+- **Hooks:** `tokenizeProperty`, `mapCssVariables` (formats radius/borderWidth/blur as px), `interpretRecipe`.
+- **Output:** `theme.effects.radius` (raw), `.tokens`, `.variables`, `.nodes`, `.classes`, `.getClass()`.
+
+See [`docs/effects/README.md`](docs/effects/README.md) for the complete reference.
+
 ## For consumers
 
-1. Define your raw theme: `{ breakpoints, colors: { ... }, typography: { ... }, layout: { spacing, gutters, container, columns, grids, stacks, recipes } }`.
+1. Define your raw theme: `{ breakpoints, colors: { ... }, typography: { ... }, layout: { ... }, effects: { radius, shadow, blur, zIndex, opacity, outline, borderWidth, transitions, recipes } }`.
 2. Call `createTheme(rawTheme, options)`. Options control CSS variable prefixes, units, class prefixes per subsystem.
 3. Inject `theme.css` as a global stylesheet (one `<style>` tag, or a `.css` file, or however your framework works).
 4. Reference recipe class names via `theme.colors.getClass("group", "variant")` or `theme.typography.getClass("group", "variant")`.

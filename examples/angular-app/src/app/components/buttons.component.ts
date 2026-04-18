@@ -38,7 +38,7 @@ export class ButtonsComponent {
 
   buttonClasses = this.theme.components.classes?.['buttons'] ?? {};
 
-  getClass(group: string, variant: string): string {
-    return this.theme.components.getClass(group, variant) ?? '';
+  getClass(group: "buttons" | "cards" | "badges", variant: string): string {
+    return (this.theme.components.getClass as any)(group, variant) ?? '';
   }
 }

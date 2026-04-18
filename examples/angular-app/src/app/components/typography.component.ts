@@ -44,7 +44,7 @@ import { APP_THEME } from '../theme';
 export class TypographyComponent {
   private theme = inject(APP_THEME);
 
-  getTypoClass(group: string, variant: string): string {
-    return this.theme.typography.getClass(group, variant) ?? '';
+  getTypoClass(group: "heading" | "body" | "button", variant: string): string {
+    return (this.theme.typography.getClass as any)(group, variant) ?? '';
   }
 }

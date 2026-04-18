@@ -68,7 +68,7 @@ box-shadow: var(--app-effects-shadow--lg);</pre>
 export class CardsComponent {
   private theme = inject(APP_THEME);
 
-  getClass(group: string, variant: string): string {
-    return this.theme.components.getClass(group, variant) ?? '';
+  getClass(group: "buttons" | "cards" | "badges", variant: string): string {
+    return (this.theme.components.getClass as any)(group, variant) ?? '';
   }
 }

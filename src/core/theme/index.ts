@@ -83,23 +83,55 @@ type ThemeWithMedia<T extends string> = {
   readonly media: MediaDescriptor<T>;
 };
 
-type PaletteComputedProperties<TPaletteKey extends string, TBreakpoint extends string> = {
+// --- Recipe key extraction helpers ---
+
+type ExtractRecipes<TSource, TKey extends string> =
+  TSource extends Record<string, unknown>
+    ? TKey extends keyof TSource
+      ? TSource[TKey] extends Record<string, unknown>
+        ? TSource[TKey] extends { recipes?: infer R }
+          ? R extends Record<string, Record<string, unknown>> ? R : Record<string, Record<string, unknown>>
+          : Record<string, Record<string, unknown>>
+        : Record<string, Record<string, unknown>>
+      : Record<string, Record<string, unknown>>
+    : Record<string, Record<string, unknown>>;
+
+type RecipeClassMap<TRecipes> = {
+  readonly [G in keyof TRecipes & string]: {
+    readonly [V in keyof TRecipes[G] & string]: string;
+  };
+};
+
+type RecipeComponentClassMap<TRecipes> = {
+  readonly [G in keyof TRecipes & string]: {
+    readonly [V in keyof TRecipes[G] & string]: ResolvedComponentClass;
+  };
+};
+
+type GetClassFn<TRecipes> = <G extends keyof TRecipes & string>(
+  group: G,
+  variant: keyof TRecipes[G] & string,
+) => string | undefined;
+
+// --- Subsystem slice types ---
+
+type PaletteComputedProperties<TPaletteKey extends string, TBreakpoint extends string, TRecipes = Record<string, Record<string, unknown>>> = {
   readonly tokens: Record<TPaletteKey, PaletteTokens>;
   readonly variables: CssVariablesNode[];
   readonly nodes: CssNode[];
-  readonly classes: Record<string, Record<string, string>>;
+  readonly classes: RecipeClassMap<TRecipes>;
   readonly styles: Record<string, PaletteRecipeStyleMap<TBreakpoint>>;
-  getClass: (group: string, variant: string) => string | undefined;
+  getClass: GetClassFn<TRecipes>;
   lighten: (name: TPaletteKey, percent: number) => string;
   darken: (name: TPaletteKey, percent: number) => string;
   readonly recipes: PaletteRecipeSource<TBreakpoint>;
 };
 
-type PaletteThemeSlice<TPaletteKey extends string, TBreakpoint extends string> =
-  Record<TPaletteKey, PaletteSource> & PaletteComputedProperties<TPaletteKey, TBreakpoint>;
+type PaletteThemeSlice<TPaletteKey extends string, TBreakpoint extends string, TRecipes = Record<string, Record<string, unknown>>> =
+  Record<TPaletteKey, PaletteSource> & PaletteComputedProperties<TPaletteKey, TBreakpoint, TRecipes>;
 
-type ThemeWithPalette<TPaletteKey extends string, TBreakpoint extends string> = {
-  colors: PaletteThemeSlice<TPaletteKey, TBreakpoint>;
+type ThemeWithPalette<TPaletteKey extends string, TBreakpoint extends string, TRecipes = Record<string, Record<string, unknown>>> = {
+  colors: PaletteThemeSlice<TPaletteKey, TBreakpoint, TRecipes>;
 };
 
 type ThemeWithAggregateCss = {
@@ -107,59 +139,59 @@ type ThemeWithAggregateCss = {
   readonly nodes: CssNode[];
 };
 
-type TypographyComputedProperties = {
+type TypographyComputedProperties<TRecipes = Record<string, Record<string, unknown>>> = {
   readonly tokens: TypographyTokens;
   readonly variables: CssVariablesNode[];
   readonly nodes: CssNode[];
-  readonly classes: Record<string, Record<string, string>>;
-  getClass: (group: string, variant: string) => string | undefined;
-  style: (group: string, variant: string) => Record<string, string>;
+  readonly classes: RecipeClassMap<TRecipes>;
+  getClass: GetClassFn<TRecipes>;
+  style: <G extends keyof TRecipes & string>(group: G, variant: keyof TRecipes[G] & string) => Record<string, string>;
 };
 
-type TypographyThemeSlice = TypographySource & TypographyComputedProperties;
+type TypographyThemeSlice<TRecipes = Record<string, Record<string, unknown>>> = TypographySource & TypographyComputedProperties<TRecipes>;
 
-type ThemeWithTypography = {
-  typography: TypographyThemeSlice;
+type ThemeWithTypography<TRecipes = Record<string, Record<string, unknown>>> = {
+  typography: TypographyThemeSlice<TRecipes>;
 };
 
-type LayoutComputedProperties = {
+type LayoutComputedProperties<TRecipes = Record<string, Record<string, unknown>>> = {
   readonly tokens: LayoutTokensType;
   readonly variables: CssVariablesNode[];
   readonly nodes: CssNode[];
-  readonly classes: Record<string, Record<string, string>>;
-  getClass: (group: string, variant: string) => string | undefined;
+  readonly classes: RecipeClassMap<TRecipes>;
+  getClass: GetClassFn<TRecipes>;
 };
 
-type LayoutThemeSlice = LayoutSource & LayoutComputedProperties;
+type LayoutThemeSlice<TRecipes = Record<string, Record<string, unknown>>> = LayoutSource & LayoutComputedProperties<TRecipes>;
 
-type ThemeWithLayout = {
-  layout: LayoutThemeSlice;
+type ThemeWithLayout<TRecipes = Record<string, Record<string, unknown>>> = {
+  layout: LayoutThemeSlice<TRecipes>;
 };
 
-type EffectsComputedProperties = {
+type EffectsComputedProperties<TRecipes = Record<string, Record<string, unknown>>> = {
   readonly tokens: EffectsTokensType;
   readonly variables: CssVariablesNode[];
   readonly nodes: CssNode[];
-  readonly classes: Record<string, Record<string, string>>;
-  getClass: (group: string, variant: string) => string | undefined;
+  readonly classes: RecipeClassMap<TRecipes>;
+  getClass: GetClassFn<TRecipes>;
 };
 
-type EffectsThemeSlice = EffectsSource & EffectsComputedProperties;
+type EffectsThemeSlice<TRecipes = Record<string, Record<string, unknown>>> = EffectsSource & EffectsComputedProperties<TRecipes>;
 
-type ThemeWithEffects = {
-  effects: EffectsThemeSlice;
+type ThemeWithEffects<TRecipes = Record<string, Record<string, unknown>>> = {
+  effects: EffectsThemeSlice<TRecipes>;
 };
 
-type ComponentsComputedProperties = {
+type ComponentsComputedProperties<TRecipes = Record<string, Record<string, unknown>>> = {
   readonly nodes: CssNode[];
-  readonly classes: Record<string, Record<string, ResolvedComponentClass>>;
-  getClass: (group: string, variant: string) => string | undefined;
+  readonly classes: RecipeComponentClassMap<TRecipes>;
+  getClass: <G extends keyof TRecipes & string>(group: G, variant: keyof TRecipes[G] & string) => string | undefined;
 };
 
-type ComponentsThemeSlice = ComponentsSource & ComponentsComputedProperties;
+type ComponentsThemeSlice<TRecipes = Record<string, Record<string, unknown>>> = ComponentsSource & ComponentsComputedProperties<TRecipes>;
 
-type ThemeWithComponents = {
-  components: ComponentsThemeSlice;
+type ThemeWithComponents<TRecipes = Record<string, Record<string, unknown>>> = {
+  components: ComponentsThemeSlice<TRecipes>;
 };
 
 type PaletteRecipeOutput<TBreakpoint extends string> = {
@@ -200,11 +232,11 @@ export function createTheme<
   options?: CreateThemeOptions,
 ): TTheme &
   ThemeWithMedia<T> &
-  ThemeWithPalette<TPaletteKey, T> &
-  ThemeWithTypography &
-  ThemeWithLayout &
-  ThemeWithEffects &
-  ThemeWithComponents &
+  ThemeWithPalette<TPaletteKey, T, ExtractRecipes<TTheme, "colors">> &
+  ThemeWithTypography<ExtractRecipes<TTheme, "typography">> &
+  ThemeWithLayout<ExtractRecipes<TTheme, "layout">> &
+  ThemeWithEffects<ExtractRecipes<TTheme, "effects">> &
+  ThemeWithComponents<ExtractRecipes<TTheme, "components">> &
   ThemeWithAggregateCss {
   const adapter = options?.adapter ?? createCssAdapter();
   const paletteHelper = createPaletteThemeHelper();
@@ -1309,10 +1341,10 @@ export function createTheme<
 
   return clone as unknown as TTheme &
     ThemeWithMedia<T> &
-    ThemeWithPalette<TPaletteKey, T> &
-    ThemeWithTypography &
-    ThemeWithLayout &
-    ThemeWithEffects &
-    ThemeWithComponents &
+    ThemeWithPalette<TPaletteKey, T, ExtractRecipes<TTheme, "colors">> &
+    ThemeWithTypography<ExtractRecipes<TTheme, "typography">> &
+    ThemeWithLayout<ExtractRecipes<TTheme, "layout">> &
+    ThemeWithEffects<ExtractRecipes<TTheme, "effects">> &
+    ThemeWithComponents<ExtractRecipes<TTheme, "components">> &
     ThemeWithAggregateCss;
 }

@@ -1,6 +1,6 @@
 import type {
   LayoutHelpers,
-  LayoutTokens,
+  LegacyLayoutTokens,
 } from "../../subsystems/layout";
 import type { TypographyTokens } from "../../subsystems/typography";
 import type { MediaHelpers } from "./media";
@@ -28,7 +28,7 @@ export interface ThemeAugmentation {
     css: string;
     mixin: (group: string, variant: string) => ReturnType<typeof import("styled-components").css>;
   };
-  layoutTokens?: LayoutTokens<string>;
+  layoutTokens?: LegacyLayoutTokens<string>;
   layoutCSS: string;
   layoutSpacing: LayoutHelpers<string>["spacing"];
   layoutGutter: LayoutHelpers<string>["gutter"];

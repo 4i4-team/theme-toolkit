@@ -49,7 +49,7 @@ import type { TypographySource, TypographyTokens, TypographyBuilderOptions, Typo
 import { buildGridTokens } from "../../subsystems/layout";
 import type {
   LayoutConfig,
-  LayoutTokens,
+  LegacyLayoutTokens,
   LayoutHelpers,
   LayoutBuilderOptions,
 } from "../../subsystems/layout";
@@ -62,21 +62,13 @@ type ColorsSubsystemSource<TPaletteKey extends string, TBreakpoint extends strin
 
 import type { PropertyValue } from "../common";
 
-type LayoutSubsystemSource<TBreakpoint extends string> = {
-  spacing?: PropertyValue<number>;
-  gutters?: PropertyValue<number>;
-  columns?: import("../../subsystems/layout").ColumnsInput;
-  containers?: import("../../subsystems/layout").ContainersInput<TBreakpoint>;
-  stacks?: import("../../subsystems/layout").StacksInput;
-  grids?: import("../../subsystems/layout").GridsInput;
-  recipes?: import("../../subsystems/layout").LayoutStylesInput;
-};
+type LayoutSubsystemSource = import("../../subsystems/layout").LayoutSource;
 
 type ThemeWithBreakpoints<T extends string, TPaletteKey extends string> = {
   breakpoints: Breakpoints<T>;
   typography?: TypographySource;
   colors?: ColorsSubsystemSource<TPaletteKey, T>;
-  layout?: LayoutSubsystemSource<T>;
+  layout?: LayoutSubsystemSource;
 };
 
 type PaletteComputedProperties<TPaletteKey extends string, TBreakpoint extends string> = {
@@ -119,7 +111,7 @@ type ThemeWithTypography = {
 };
 
 type ThemeWithLayout<T extends string> = {
-  layoutTokens?: LayoutTokens<T>;
+  layoutTokens?: LegacyLayoutTokens<T>;
   layoutCSS: string;
   layoutSpacing: LayoutHelpers<T>["spacing"];
   layoutGutter: LayoutHelpers<T>["gutter"];
@@ -223,22 +215,22 @@ const convertPropertyValueToTokenMap = (
 };
 
 const convertLayoutSource = <T extends string>(
-  source: LayoutSubsystemSource<T> | undefined,
+  source: LayoutSubsystemSource | undefined,
 ): LayoutConfig<T> | undefined => {
   if (!source) return undefined;
   return {
     spacing: convertPropertyValueToTokenMap(source.spacing) as any,
     gutters: source.gutters ? convertPropertyValueToTokenMap(source.gutters) as any : undefined,
-    columns: source.columns,
-    containers: source.containers,
-    styles: source.recipes,
-    stacks: source.stacks,
-    grids: source.grids,
+    columns: source.columns as any,
+    containers: source.container as any,
+    styles: source.recipes as any,
+    stacks: source.stacks as any,
+    grids: source.grids as any,
   };
 };
 
 const buildLayoutHelpers = <T extends string>(
-  layout: LayoutSubsystemSource<T> | undefined,
+  layout: LayoutSubsystemSource | undefined,
   breakpoints: Breakpoints<T>,
   options?: LayoutBuilderOptions,
 ): ThemeWithLayout<T> => {
@@ -247,7 +239,7 @@ const buildLayoutHelpers = <T extends string>(
     return createMissingLayoutHelpers();
   }
 
-  const { tokens, helpers, toCSS } = buildGridTokens({ layout: converted }, breakpoints, options);
+  const { tokens, helpers, toCSS } = buildGridTokens({ layout: converted } as any, breakpoints, options as any);
 
   return {
     layoutTokens: tokens,

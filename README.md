@@ -78,6 +78,7 @@ theme.media.between("sm", "lg")    // "@media (min-width: 576px) and (max-width:
 | [Core reference](docs/core/README.md) | Consumers + extenders: pipelines, stages, IR, helper contract |
 | [Colors subsystem](docs/colors/README.md) | Consumers: input shapes, steps, recipes, CSS naming |
 | [Typography subsystem](docs/typography/README.md) | Consumers: 9 properties, fontSize scale, recipes, CSS naming |
+| [Layout subsystem](docs/layout/README.md) | Consumers: spacing, gutters, containers, columns, grids, stacks, recipes |
 | [Architecture guide](AGENT.md) | Extenders: source structure, subsystem authoring, key decisions |
 
 ## Framework integration

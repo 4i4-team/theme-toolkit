@@ -7,9 +7,11 @@ Design-token engine and recipe system for building framework-agnostic UI kits. T
 - [`docs/core/README.md`](docs/core/README.md) — complete core reference: pipelines, stages, IR types, media utility, SubsystemHelper contract, output shape.
 - [`docs/colors/README.md`](docs/colors/README.md) — colors subsystem reference: input shapes, steps, recipes, CSS variable naming, helper hooks.
 - [`docs/typography/README.md`](docs/typography/README.md) — typography subsystem reference: 9 PropertyValue properties, fontSize scale generation, recipes, helper hooks.
+- [`docs/layout/README.md`](docs/layout/README.md) — layout subsystem reference: spacing, gutters, aspectRatio, container (3 modes), columns, grids, stacks, recipes.
 - [`README.md`](README.md) — quick start and public API overview.
 - [`examples/colors-app`](examples/colors-app/) — vanilla TS colors example.
 - [`examples/typography-app`](examples/typography-app/) — vanilla TS typography example.
+- [`examples/layout-app`](examples/layout-app/) — vanilla TS layout example.
 
 ## Source structure
 
@@ -166,9 +168,24 @@ The typography subsystem (`src/subsystems/typography/`) follows the same Propert
 
 See [`docs/typography/README.md`](docs/typography/README.md) for the complete reference.
 
+### Layout subsystem
+
+The layout subsystem (`src/subsystems/layout/`) handles spatial structure — spacing, containers, columns, grids, stacks. It has 8 reserved keys:
+
+- **Properties:** `spacing` (PropertyValue<number>), `gutters` (PropertyValue<number>), `aspectRatio` (PropertyValue<string>). `none: 0` always forced on spacing/gutters.
+- **Container:** `PropertyValue<string, ContainerExtras>` — 3 modes: `"fixed"` (breakpoint stepping), `"fluid"` (100% width), or custom value. Extras: `inset` (spacing ref), `gutter` (gutter ref), `direction`, `align`, `justify`, `maxWidth`. Supports variants (narrow, wide, full). Fixed containers auto-generate `@media` max-width stepping; responsive entries control direction/align/justify/inset/gutter but NOT width. Default container always generated.
+- **Columns:** `size: number` + optional `gutter`/`inset` refs → CSS variables (`var(--prefix-layout-gutters--variant)`) + per-breakpoint span/offset utility classes.
+- **Grids:** named CSS Grid presets → utility classes. Props: `templateColumns`, `templateRows`, `gap` (spacing ref), `responsive`.
+- **Stacks:** named flexbox presets → utility classes. Props: `direction`, `align`, `justify`, `wrap`, `inline`, `gap` (spacing ref), `responsive`.
+- **Recipes:** free-form layout recipes → utility classes. Props: `paddingY`, `paddingX`, `marginY`, `marginX`, `gap`, `background`. Spacing props resolve to `var(--)`.
+- **Gap references** in grids, stacks, and containers resolve to `var(--prefix-layout-spacing--variant)` so responsive spacing changes cascade automatically.
+- **Output:** `theme.layout.spacing` (raw), `.tokens`, `.variables`, `.nodes`, `.classes`, `.getClass()` — same pattern as colors/typography.
+
+See [`docs/layout/README.md`](docs/layout/README.md) for the complete reference.
+
 ## For consumers
 
-1. Define your raw theme: `{ breakpoints, colors: { ..., recipes: { ... } }, typography: { fontFamily: { base, variants }, fontSize: { base, ratio }, ..., recipes: { ... } } }`.
+1. Define your raw theme: `{ breakpoints, colors: { ... }, typography: { ... }, layout: { spacing, gutters, container, columns, grids, stacks, recipes } }`.
 2. Call `createTheme(rawTheme, options)`. Options control CSS variable prefixes, units, class prefixes per subsystem.
 3. Inject `theme.css` as a global stylesheet (one `<style>` tag, or a `.css` file, or however your framework works).
 4. Reference recipe class names via `theme.colors.getClass("group", "variant")` or `theme.typography.getClass("group", "variant")`.

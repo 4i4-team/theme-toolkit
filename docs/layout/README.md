@@ -1,505 +1,352 @@
-# Grid Data Source Concept
+# Layout Subsystem
 
-## Goals & Inspiration
-- Provide the same "source of truth → helpers" pipeline we already use for palette/typography: preserve the authoring data, emit normalized tokens, CSS variables, and ready-to-use styled-components helpers.
-- Match capabilities of Bootstrap/Tailwind/Chakra container + column systems (responsive container widths, configurable gutters, spacing scales) while keeping Theme Registry parity.
-- Allow teams to define default containers derived from existing `theme.breakpoints`, but also extra "wide"/"narrow" containers that clamp width or stretch to 100% with optional `maxWidth` safeguards.
-- Ship ergonomic APIs similar to Chakra's `Container`, Tailwind's `container` plugin, and CSS grid utility generators: prebuilt mixins for columns, gutters, spacing, and semantic layout styles.
+Transforms raw layout definitions into CSS custom properties, utility classes, and recipe class names. Handles spacing, gutters, aspect ratios, containers, columns, grids, stacks, and free-form layout recipes.
 
-## Example Input
+**Files:** `src/subsystems/layout/` — `index.ts`, `types.ts`, `utils.ts`, `normalize.ts`, `tokens.ts`, `recipes.ts`, `theme.ts`.
+
+---
+
+## Raw input
+
+Layout lives under `rawTheme.layout` with 8 reserved keys:
+
 ```ts
-const gridSource = {
+createTheme({
+  breakpoints: { xs: 0, sm: 576, md: 768, lg: 1024, xl: 1280 },
   layout: {
-    // canonical spacing tokens reused by gutters, insets, margins, etc.
+    // Properties (PropertyValue → CSS variables)
     spacing: {
-      // built-in zero token so authors can disable spacing without redefining it
-      none: 0,
-      default: 16,
-      compact: 8,
-      relaxed: {
-        value: 30,
-        responsive: [
-          { breakpoint: 'xs', value: 8 },
-          { breakpoint: 'sm', value: 15 },
-          { breakpoint: 'md', value: 15 },
-        ],
-      },
-      xs: 4,
-      sm: 'compact',
-      md: 16,
-      lg: 24,
-      xl: 32,
-      '2xl': 48,
+      base: 16,
+      variants: { none: 0, compact: 8, relaxed: 32 },
+      responsive: [
+        { breakpoint: "sm", target: "relaxed", base: 20 },
+        { breakpoint: "lg", target: "relaxed", base: 40 },
+      ],
     },
-    // Optional named gutters for other layout primitives (stacks, tiles, etc.)
     gutters: {
-      none: 'none',
-      default: 'sm',
-      tight: 'compact',
-      loose: 40,
-      hero: {
-        token: '2xl',
-        responsive: [{ breakpoint: 'lg', value: 56 }],
+      base: 16,
+      variants: { compact: 8, relaxed: 32, loose: 48 },
+    },
+    aspectRatio: {
+      base: "auto",
+      variants: { square: "1", video: "16/9", portrait: "3/4" },
+    },
+
+    // Special properties (CSS variables + utility classes)
+    container: {
+      base: "fixed",
+      inset: "base",
+      gutter: "base",
+      direction: "column",
+      responsive: [
+        { breakpoint: "md", direction: "row", align: "center" },
+      ],
+      variants: {
+        narrow: { base: "fixed", maxWidth: "md" },
+        wide: { base: "fluid", maxWidth: 1600, inset: "relaxed" },
+        full: { base: "fluid" },
       },
     },
-    // columns can also be provided as a bare number (see Columns Input Options). Expanded form shown here.
-    columns: {
-      size: 12,
-      // gap between individual columns (maps to CSS column-gap/row-gap)
-      gutter: {
-        default: { token: 'md' },
-        responsive: [
-          { breakpoint: 'xs', value: 12 },
-          { breakpoint: 'lg', token: 'xl' },
-        ],
-      },
-      // padding applied to the grid wrapper before/after columns
-      inset: {
-        default: 'layout',
-        responsive: [{ breakpoint: 'xl', value: 'relaxed' }],
-      },
-    },
-    // container presets (default/wide/narrow...) built from breakpoints + spacing
-    containers: {
-      // fixed container derived from breakpoints; inset configurable only (mode locked)
-      default: 'layout',
-      // fixed container but clamped at md breakpoint (does not grow beyond md width)
-      narrow: {
-        mode: 'fixed',
-        clampTo: { breakpoint: 'md' },
-        inset: { token: 'sm' },
-      },
-      // fluid container (100% width) with optional breakpoint-based max width
-      wide: {
-        mode: 'fluid',
-        maxWidth: { mode: 'breakpoint', value: 'xl' },
-        inset: 'layout',
-      },
-      // fluid container using custom max width value
-      hero: {
-        mode: 'fluid',
-        maxWidth: { mode: 'custom', value: '90vw' },
-        inset: {
-          responsive: [
-            { breakpoint: 'xs', value: 'compact', query: 'max' },
-            { breakpoint: 'md', value: 'layout' },
-            { breakpoint: 'xl', value: 80, query: 'min' },
-          ],
-        },
-      },
-    },
-    // semantic layout styles (padding/margins/gaps) similar to typography styles
-    styles: {
-      section: {
-        default: {
-          marginY: '2xl',
-          paddingX: 'layout',
-          background: 'transparent',
-        },
-        hero: {
-          marginY: 'none',
-          paddingX: 'wide',
-          responsive: [
-            { breakpoint: 'md', paddingX: 'relaxed' },
-            { breakpoint: 'xl', paddingX: 80 },
-          ],
-        },
-      },
-      banner: {
-        compact: {
-          paddingY: 'compact',
-          paddingX: 'relaxed',
-        },
-      },
-    },
-    // stack presets (flex direction/align/gap) for VStack/HStack equivalents
-    stacks: {
-      vertical: {
-        direction: 'column',
-        gap: 'relaxed',
-        align: 'stretch',
-      },
-      horizontal: {
-        direction: 'row',
-        gap: 'compact',
-        align: 'center',
-        responsive: [{ breakpoint: 'sm', direction: 'column' }],
-      },
-      inlinePills: {
-        direction: 'row',
-        inline: true,
-        wrap: 'wrap',
-        gap: 'compact',
-      },
-    },
-    // grid presets (display: grid + template definitions) for cards/feature layouts
+    columns: 12,
+
+    // Special presets (utility classes)
     grids: {
-      cards: {
-        templateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-        gap: 'relaxed',
-      },
+      cards: { templateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "relaxed" },
       feature: {
-        templateColumns: 'repeat(3, minmax(0, 1fr))',
-        gap: 'default',
-        responsive: [
-          { breakpoint: 'md', templateColumns: 'repeat(2, minmax(0, 1fr))' },
-          { breakpoint: 'sm', templateColumns: 'repeat(1, minmax(0, 1fr))' },
-        ],
+        templateColumns: "repeat(3, 1fr)", gap: "base",
+        responsive: [{ breakpoint: "md", templateColumns: "repeat(2, 1fr)" }],
+      },
+    },
+    stacks: {
+      vertical: { direction: "column", gap: "relaxed" },
+      horizontal: { direction: "row", gap: "compact", responsive: [{ breakpoint: "sm", direction: "column" }] },
+    },
+
+    // Free-form recipes
+    recipes: {
+      section: {
+        hero: { paddingY: "relaxed", paddingX: "relaxed" },
+        block: { paddingY: "compact", paddingX: "relaxed" },
       },
     },
   },
-} as const;
+}, { layout: { prefix: "brand", classPrefix: "brand" } });
 ```
 
-### Builder Options
+---
 
-`buildGridTokens` (and `createTheme({ layout: … })`) accepts two optional prefix controls:
+## Reserved keys
 
-- `prefix` (default `--dt`) drives CSS variable names.
-- `classPrefix` customizes the generated utility classes. When omitted we derive it from `prefix` (e.g., `--brand` → `brand`, defaulting to `dt`).
+| Key | Kind | Produces |
+|---|---|---|
+| `spacing` | property | CSS variables (`--prefix-layout-spacing--*`) |
+| `gutters` | property | CSS variables (`--prefix-layout-gutters--*`) |
+| `aspectRatio` | property | CSS variables (`--prefix-layout-aspect-ratio--*`) |
+| `container` | special property | CSS variables + container utility classes |
+| `columns` | special property | CSS variables + column span/offset utility classes |
+| `grids` | special property | Grid layout utility classes |
+| `stacks` | special property | Flexbox stack utility classes |
+| `recipes` | free-form | Layout recipe classes (padding, margin, gap) |
+
+---
+
+## Properties
+
+### spacing
+
+`PropertyValue<number>` — base spacing + named variants.
 
 ```ts
-createTheme(theme, {
-  layout: {
-    prefix: "--brand",
-    classPrefix: "brand",
-  },
-});
-// ⇒ CSS vars like --brand-spacing--md and classes like .brand-col-md-6
+spacing: { base: 16, variants: { none: 0, compact: 8, relaxed: 32 } }
+// or primitive: spacing: 16
 ```
 
-### Generated Utility Classes
+- `none: 0` is always forced (even if user defines a different value).
+- Supports responsive overrides with `target` to change specific variants at breakpoints.
+- Values formatted as `px` in CSS variables.
 
-Including `layoutCSS` in your global styles emits ready-to-use utility classes:
+### gutters
 
-- `.${prefix}-container-{name}` — container padding/max-width per preset (`default`, `wide`, etc.).
-- `.${prefix}-col-{breakpoint}-{span}` / `.${prefix}-offset-{breakpoint}-{span}` — column spans and offsets derived from the grid size.
-- `.${prefix}-{group}-{variant}` — semantic layout styles (sections/blocks) for spacing presets.
-- `.${prefix}-stack-{name}` — flex stacks (direction, align, wrap, gap) for each `layout.stacks` entry.
-- `.${prefix}-grid-{name}` — CSS grid templates for each `layout.grids` entry.
-- `.${prefix}-gap-{token}`, `.${prefix}-px-{token}`, `.${prefix}-py-{token}`, `.${prefix}-mx-{token}`, `.${prefix}-my-{token}` — spacing utilities derived from every spacing token.
+Same shape as spacing. Used for grid/container gap values.
 
-The prefix defaults to `dt` (e.g., `.dt-col-md-6`) and honors `layout.classPrefix` (or falls back to the sanitized CSS-variable prefix).
+### aspectRatio
 
-### Spacing Input Options
-
-**Simplified** – single value (number/string) maps to `spacing.default` automatically:
+`PropertyValue<string>` — named aspect ratio presets.
 
 ```ts
-const layout = {
-  spacing: 15, // normalized to { none: 0, default: '15px' }
-};
+aspectRatio: { base: "auto", variants: { square: "1", video: "16/9" } }
 ```
 
-**Advanced** – object with named tokens, responsive overrides, or inline values:
+---
+
+## Container
+
+`PropertyValue<string, ContainerExtras>` — the most feature-rich layout property.
+
+`base` = mode: `"fixed"`, `"fluid"`, or a custom width value.
+
+### Three modes
+
+| Mode | Behavior |
+|---|---|
+| `"fixed"` (default) | `max-width` steps through breakpoints automatically. |
+| `"fluid"` | `width: 100%`. No stepping. Optional `maxWidth` cap. |
+| custom (`number \| string`) | Fixed `max-width` at a specific value. |
+
+### Extra fields
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `inset` | string | `"base"` | Spacing variant for horizontal padding (left + right). References `--layout-spacing--*`. |
+| `gutter` | string | — | Gutter variant for gap between children. References `--layout-gutters--*`. |
+| `direction` | `"row" \| "column"` | — | Sets `display: flex; flex-direction`. |
+| `align` | string | — | `align-items` |
+| `justify` | string | — | `justify-content` |
+| `maxWidth` | breakpoint name or custom value | — | For fixed: caps breakpoint stepping. For fluid: hard `max-width` cap. |
+
+### Variants
 
 ```ts
-const layoutSpacing = {
-  none: 0,
-  default: 16,
-  compact: 8,
-  relaxed: {
-    value: 30,
-    responsive: [
-      { breakpoint: 'xs', value: 8 },
-      { breakpoint: 'sm', value: 15 },
-      { breakpoint: 'md', value: 15 },
-      { breakpoint: 'xl', token: '2xl', query: 'min' },
-    ],
+container: {
+  base: "fixed",
+  inset: "base",
+  variants: {
+    narrow: { base: "fixed", maxWidth: "md" },
+    wide: { base: "fluid", maxWidth: 1600, inset: "relaxed" },
+    full: { base: "fluid" },
   },
-  xs: 4,
-  sm: 'compact', // alias existing token
-  md: 16,
-  lg: 24,
-  xl: 32,
-  '2xl': 48,
-};
+}
 ```
 
-### Gutter Input Options
+Each variant inherits extras from the base when not overridden.
 
-**Simplified** – single number or spacing token reference:
+### Responsive
+
+For fixed containers: `responsive` overrides direction, align, justify, inset, gutter — NOT width/maxWidth (auto-generated from breakpoints).
+
+For fluid/custom containers: all properties responsive.
 
 ```ts
-const layoutGuttersSimple = 'sm'; // normalized to { default: { token: 'sm' } }
-
-const layoutGuttersPx = 24; // normalized to { default: { value: 24 } }
+responsive: [
+  { breakpoint: "md", direction: "row", align: "center" },
+  { breakpoint: "lg", target: "wide", direction: "row" },
+]
 ```
 
-**Advanced** – object mirroring spacing syntax for named presets:
+### Generated classes
+
+- `.prefix-container` — base (always generated, even if not defined)
+- `.prefix-container-narrow`, `.prefix-container-wide`, etc. — per variant
+
+### Default container
+
+If `container` is not defined at all, a default fixed container is auto-generated with `inset: "base"`.
+
+---
+
+## Columns
+
+Column grid system with span and offset utility classes.
 
 ```ts
-const layoutGutters = {
-  default: 'sm',
-  tight: 'compact',
-  loose: 40,
-  hero: {
-    token: '2xl',
-    responsive: [{ breakpoint: 'lg', value: 56 }],
-  },
-};
+// Primitive — just column count
+columns: 12
+
+// Extended — override gutter and inset
+columns: { size: 12, gutter: "compact", inset: "relaxed" }
 ```
 
-### Columns Input Options
+- `gutter` and `inset` reference spacing/gutter variants via `var(--)`.
+- Generates per-breakpoint classes: `.prefix-col-{bp}-{span}`, `.prefix-offset-{bp}-{span}`.
 
-**Simplified** – number maps to `{ size, gutter, inset }`, where `gutter.default` uses the global `spacing.default` token and `inset` falls back to zero (`spacing.none`).
+### CSS variables
 
-```ts
-const layoutColumnsSimple = 12;
-// normalized to {
-//   size: 12,
-//   gutter: { default: { token: 'default' } },
-//   inset: { default: 'none' },
-// }
+```css
+--prefix-layout-columns--size: 12;
+--prefix-layout-columns--gutter: var(--prefix-layout-gutters--base);
+--prefix-layout-columns--inset: var(--prefix-layout-spacing--none);
 ```
 
-**Advanced** – object with explicit overrides (any field optional):
+---
+
+## Grids
+
+Named CSS Grid presets producing utility classes.
 
 ```ts
-const layoutColumns = {
-  size: 12,
-  gutter: {
-    default: { token: 'md' },
-    responsive: [{ breakpoint: 'xl', token: 'xl' }],
-  },
-  inset: {
-    default: 'layout',
-    responsive: [{ breakpoint: 'md', value: 'relaxed' }],
-  },
-};
-```
-
-### Container Input Options
-
-Containers are always derived from `theme.breakpoints`; the builder combines breakpoint widths with optional insets and caps depending on the mode.
-
-```ts
-const layoutContainers = {
-  default: 'layout', // shorthand => fixed container (mode locked) w/ layout inset
-  narrow: {
-    clampTo: { breakpoint: 'md' },
-    inset: { token: 'sm' },
-  },
-  wide: {
-    mode: 'fluid',
-    maxWidth: { mode: 'breakpoint', value: 'xl' },
-  },
-  hero: {
-    mode: 'fluid',
-    maxWidth: { mode: 'custom', value: '90vw' },
-    inset: {
-      responsive: [
-        { breakpoint: 'xs', value: 'compact', query: 'max' },
-        { breakpoint: 'md', value: 'layout' },
-      ],
-    },
-  },
-};
-```
-
-### Stack Input Options
-
-Stacks describe reusable flex layouts (think Chakra's `Stack`/`HStack`). Each preset can control direction, alignment, wrapping, inline/inline-flex behavior, and gaps sourced from the spacing scale.
-
-```ts
-const layoutStacks = {
-  vertical: {
-    direction: 'column',
-    gap: 'relaxed',
-    align: 'stretch',
-  },
-  horizontal: {
-    direction: 'row',
-    gap: 'compact',
-    align: 'center',
-    responsive: [
-      { breakpoint: 'sm', direction: 'column' },
-      { breakpoint: 'xl', gap: 'relaxed' },
-    ],
-  },
-  inlinePills: {
-    inline: true,
-    wrap: 'wrap',
-    direction: 'row',
-    gap: 'compact',
-  },
-};
-```
-
-### Grid Preset Input Options
-
-Grid presets wrap CSS Grid templates into tokens so card layouts share the same config. Each preset can specify template columns/rows, auto tracks, alignment, and gaps, plus responsive overrides.
-
-```ts
-const layoutGrids = {
-  cards: {
-    templateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-    gap: 'relaxed',
-  },
+grids: {
+  cards: { templateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "relaxed" },
   feature: {
-    templateColumns: 'repeat(3, minmax(0, 1fr))',
-    gap: 'default',
-    responsive: [
-      { breakpoint: 'md', templateColumns: 'repeat(2, minmax(0, 1fr))' },
-      { breakpoint: 'sm', templateColumns: 'repeat(1, minmax(0, 1fr))', gap: 'compact' },
-    ],
+    templateColumns: "repeat(3, 1fr)", gap: "base",
+    responsive: [{ breakpoint: "md", templateColumns: "repeat(2, 1fr)" }],
   },
-};
+}
 ```
 
-- **Fixed** (default): width equals the current breakpoint width. `inset` controls padding. Use `clampTo` to stop growth beyond a target breakpoint (e.g., clamp to `md`). The `default` container is always fixed; `mode` is ignored for this key so only `inset` (and optional `clampTo`) are configurable.
-- **Fluid** (`mode: 'fluid'`): width is 100%. Optional `maxWidth` lets you cap it using a breakpoint (`{ mode: 'breakpoint', value: 'xl' }`), custom measurement (`{ mode: 'custom', value: 1440 }` or `'90vw'`), or omit entirely (`{ mode: 'none' }`).
-- `inset` follows the spacing schema; omit it to fall back to `spacing.none`.
+### Available fields
 
-### Layout Styles Input
+`templateColumns`, `templateRows`, `autoRows`, `autoColumns`, `justifyItems`, `alignItems`, `justifyContent`, `alignContent`, `gap` (spacing variant ref), `responsive`.
 
-Styled analog to typography `styles`: define semantic groups/variants that reference spacing/gutter tokens and accept responsive overrides.
+`gap` references spacing variants: `gap: "relaxed"` → `gap: var(--prefix-layout-spacing--relaxed)`.
+
+### Generated classes
+
+`.prefix-grid-cards`, `.prefix-grid-feature`, etc.
+
+---
+
+## Stacks
+
+Named flexbox presets producing utility classes.
 
 ```ts
-const layoutStyles = {
+stacks: {
+  vertical: { direction: "column", gap: "relaxed", align: "stretch" },
+  horizontal: { direction: "row", gap: "compact", responsive: [{ breakpoint: "sm", direction: "column" }] },
+  pills: { direction: "row", inline: true, gap: "compact", wrap: "wrap" },
+}
+```
+
+### Available fields
+
+`direction` (`"row" | "column"`), `align`, `justify`, `wrap`, `inline` (boolean — `inline-flex`), `gap` (spacing variant ref), `responsive`.
+
+### Generated classes
+
+`.prefix-stack-vertical`, `.prefix-stack-horizontal`, `.prefix-stack-pills`, etc.
+
+---
+
+## Recipes
+
+Free-form layout recipes — same pattern as colors and typography. Recipe props reference spacing variants.
+
+```ts
+recipes: {
   section: {
-    default: {
-      marginY: '2xl',
-      paddingX: 'layout',
-      background: 'transparent',
-    },
-    hero: {
-      marginY: 'none',
-      paddingX: 'wide',
-      responsive: [
-        { breakpoint: 'md', paddingX: 'relaxed' },
-        { breakpoint: 'xl', paddingX: 80 },
-      ],
-    },
+    hero: { paddingY: "relaxed", paddingX: "relaxed" },
+    block: { paddingY: "compact", paddingX: "relaxed" },
   },
-  banner: {
-    compact: {
-      paddingY: 'compact',
-      paddingX: 'relaxed',
-    },
-  },
-};
-
-const layoutStacks = {
-  tight: {
-    direction: 'column',
-    gap: 'compact',
-  },
-  relaxed: {
-    direction: 'column',
-    gap: 'relaxed',
-    responsive: [{ breakpoint: 'lg', gap: '2xl' }],
-  },
-};
+}
 ```
 
-Notes:
-- `spacing` is the single source of spacing truth. All other measurements (gutters, insets, layout styles) reference tokens from this scale unless overridden by raw values.
-- Spacing values accept raw numbers/strings, aliases referencing other tokens (e.g., `sm: 'compact'`), or responsive overrides defined via arrays of `{ breakpoint, value|token, query? }` entries that mirror the typography responsive config.
-- Spacing values accept raw numbers/strings, aliases referencing other tokens (e.g., `sm: 'compact'`), or responsive overrides defined via arrays of `{ breakpoint, value|token, query? }` entries. When `query` is omitted we treat the breakpoint as **exact** (range from that breakpoint up to the next one), keeping behavior consistent across styles, stacks, grids, and containers.
-- Every responsive override (`spacing.relaxed`, `columns.gutter`, container insets, layout styles, etc.) uses that same array-of-objects signature so the normalization logic is shared with typography.
-- `spacing.none` is a reserved zero token injected during normalization. User-provided values for `none` are ignored so designers always have a reliable "no spacing" option.
-- `columns` accepts either a number or an object. Numbers normalize to `{ size, gutter, inset }` using `spacing.default` and `spacing.none` as fallbacks, so `gutter`/`inset` are optional even in the expanded form.
-- `columns.gutter` describes the intra-column spacing. We allow per-breakpoint overrides that can reference either a spacing token (`{ token: 'xl' }`) or explicit value (`{ value: 12 }`). This keeps column gutters aligned with the global spacing language while supporting bespoke tweaks.
-- `columns.inset` describes the padding applied to the grid wrapper itself (before columns). Using named presets like `'layout' | 'compact' | 'relaxed'` lets design dictate default behavior, but we still allow direct token/value overrides.
-- The optional top-level `gutters` block lets teams define named gutter presets for stacks/tiles. It follows the same shape as `spacing`, so entries can be raw numbers, spacing-token references, or responsive objects.
-- `gutters.none` mirrors `spacing.none` and always resolves to zero gap. User overrides are ignored so zero-gap utilities stay consistent.
-- `containers` derive from `theme.breakpoints`: the default (fixed) mode locks widths to breakpoint values while `clampTo` halts growth past a target breakpoint. The `default` container is permanently fixed (only `inset` + optional `clampTo` allowed). Switching other presets to `mode: 'fluid'` yields a 100% container with optional `maxWidth` caps (breakpoint/custom/none). `inset` reuses the spacing schema and defaults to `spacing.none`.
-- `styles` is the semantic layer (mirroring typography styles) where teams define section/block presets that reference spacing tokens. These styles drive mixins/helpers and CSS variables so common blocks share consistent spacing while keeping structural concerns separate.
-- `stacks` and `grids` describe structural primitives (flex/grid) that reuse the spacing scale for gaps but also encode direction, wrapping, and template metadata. They emit their own mixins for stack/grid shortcuts.
+### Recipe props
 
-### Why keep spacing, margins, and gutters separate?
-- **Spacing scale**: canonical token list (`xs`, `sm`, `md`, …). Everything else references it to stay consistent.
-- **Gutters/column spacing**: define the gaps between columns/rows. They often differ from outer margins (you may want `md` spacing for gutters even if the page margins are `2xl`). Keeping a separate structure lets us generate mixins like `gridGutter('tight')` without conflating them with section spacing.
-- **Container inset**: padding applied to containers. It usually equals the global layout spacing but occasionally differs (e.g., hero container with more padding). Referencing spacing tokens keeps it aligned yet overridable per container.
-- **Layout styles**: semantic spacing presets (sections/blocks) that compose tokens into ready-to-use margins, padding, and gaps.
-- **Stacks & grids**: structural presets describing flex/grid behaviors. They reference the spacing scale for gaps but also capture direction, wrapping, templates, alignment, etc.
+| Prop | CSS output |
+|---|---|
+| `paddingY` | `padding-top` + `padding-bottom` → `var(--prefix-layout-spacing--variant)` |
+| `paddingX` | `padding-left` + `padding-right` |
+| `marginY` | `margin-top` + `margin-bottom` |
+| `marginX` | `margin-left` + `margin-right` |
+| `gap` | `gap` |
+| `background` | `background` (literal value, not a spacing ref) |
 
-Columns themselves rely on `columns.gutter` and `columns.inset`. The separate `gutters` block is optional sugar for other layout primitives (stack, tiles). If teams find it redundant they can omit it and lean solely on the column definition.
+### Generated classes
 
-## Expected Output
+`.prefix-section-hero`, `.prefix-section-block`, etc.
+
+---
+
+## Output shape
+
+`theme.layout` follows raw passthrough + computed getters:
+
 ```ts
-const { tokens, helpers, toCSS } = buildGridTokens(gridSource, breakpoints);
+theme.layout.spacing        // raw passthrough
+theme.layout.gutters         // raw passthrough
+theme.layout.aspectRatio     // raw passthrough
+theme.layout.container       // raw passthrough
+theme.layout.columns         // raw passthrough
+theme.layout.grids           // raw passthrough
+theme.layout.stacks          // raw passthrough
+theme.layout.recipes         // raw passthrough
 
-// Tokens for runtime use
-const colFractions = tokens.columns[6];        // 50 (percent of 12)
-const gutterMd = tokens.columnGutters.md;      // resolved px
-const spacingLg = tokens.spacing.lg;           // 24 (px)
-const defaultContainer = tokens.containers.default.breakpoints.lg;
-/*
-{
-  width: 992,
-  paddingX: 24,
-  innerWidth: 992 - 48,
-}
-*/
-const wideContainerXL = tokens.containers.wide.breakpoints.xl;
-/*
-{
-  width: '100%',
-  maxWidth: undefined,
-  paddingX: resolvedSpacing('layout'),
-}
-*/
-const heroSection = tokens.styles.section.hero; // resolved padding/margins per breakpoint
-const verticalStack = tokens.stacks.vertical;   // flex direction + gap tokens
-const cardsGrid = tokens.grids.cards;           // grid template + gap tokens
-
-// Helpers for styled-components
-helpers.buildColumns();
-helpers.buildContainer('wide');
-helpers.spacing('lg');
-helpers.gutter('tight');
-helpers.layout('section', 'hero');
-helpers.stack('vertical');
-helpers.grid('cards');
-helpers.columnsMixin();
-helpers.containerMixin('wide');
-helpers.styleMixin('section', 'hero');
-helpers.stackMixin('vertical');
-helpers.gridMixin('cards');
-
-// CSS variables
-const cssVariables = toCSS();
-/*
-  --dt-grid-columns: 12;
-  --dt-grid-gutter--xs: 12px;
-  --dt-grid-gutter--default: 16px;
-  --dt-spacing--md: 16px;
-  --dt-container--default--lg-max-width: 992px;
-  --dt-container--hero--xl-inset: 80px;
-  --dt-layout-section--hero-padding-x--xl: 80px;
-*/
+theme.layout.tokens          // computed: { spacing: { base, variants }, gutters: {...}, aspectRatio: {...} }
+theme.layout.variables       // computed: CssVariablesNode[] (property vars + container/column vars)
+theme.layout.nodes           // computed: CssNode[] (all IR: variables + all utility classes + recipes)
+theme.layout.classes         // computed: recipe class map
+theme.layout.getClass(g, v)  // computed: fn → className | undefined
 ```
 
-### Theme Helpers Exposed via `createTheme`
+---
 
-| Helper | Description |
-|--------|-------------|
-| `layoutTokens` | Normalized spacing, gutters, columns, containers, and styles derived from `theme.layout`. Automatically refreshes when layout source or breakpoints change. |
-| `layoutCSS` | Serialized CSS variables plus generated classes (e.g., `.dt-container-default`, `.dt-col-md-6`, `.dt-stack-vertical`, `.dt-grid-cards`, `.dt-gap-relaxed`). Class prefixes honor `layout.classPrefix` (default `dt`). Drop into global styles to enable defaults. |
-| `layoutSpacing(token)` | Looks up a spacing token (value + responsive overrides), honoring aliases. Throws if no layout source exists. |
-| `layoutGutter(token)` | Same as `layoutSpacing` but for named gutter presets, handy for stacks/tiles. |
-| `layoutColumns()` | Returns the normalized column config `{ size, gutter, inset }` so you can build custom grid mixins or components programmatically. |
-| `layoutContainer(name)` | Returns the normalized container preset (mode, per-breakpoint widths, optional clamp/maxWidth, inset token). |
-| `layoutStyle(group, variant)` | Returns semantic layout style definitions (margin/padding/gap/background) plus responsive overrides, mirroring typography styles. |
-| `layoutStack(name)` | Returns normalized stack (flex) presets containing direction/align/wrap/inline data plus gap tokens. |
-| `layoutGrid(name)` | Returns normalized grid presets containing template columns/rows, alignment, and gap definitions. |
-| `layoutClassPrefix` | Sanitized prefix used by generated utility classes (defaults to `dt`, or derived from `layout.classPrefix`). Handy when composing class names manually. |
-| `layoutColumnsMixin()` | Styled-components mixin that applies the resolved column grid (`display: grid`, template columns, responsive gutters/inset). Includes `.toString()` for CSS literals. |
-| `layoutContainerMixin(name)` | Styled-components mixin for a container preset (fixed or fluid) with responsive padding/max-width baked in. Throws if the preset is missing. |
-| `layoutStyleMixin(group, variant)` | Styled-components mixin for semantic layout styles (sections/blocks) with responsive overrides and `.toString()` serialization. |
-| `layoutStackMixin(name)` | Styled-components mixin for stack presets (flex). Applies direction/align/wrap + responsive gap handling and serializes cleanly for CSS literals. |
-| `layoutGridMixin(name)` | Styled-components mixin for grid presets, outputting template definitions, alignments, and gap overrides. |
+## CSS variable naming
 
-## Comparison Targets & Differentiators
-- **Bootstrap 5**: provides fixed container widths + gutters, but no tokenized outputs. We match their responsive containers while exposing both JS and CSS variable versions.
-- **Chakra UI**: expressive spacing tokens and `Container` component; we align by using spacing scales and breakpoint-aware config while keeping raw source in the theme.
-- **Tailwind container plugin**: auto center + clamp widths per breakpoint; our custom container definitions emulate this but let designers name and tune multiple variants (wide/narrow, etc.).
-- **Styled System/Grid**: offers responsive props but requires manual theme wiring; our helpers auto-generate CSS and mixins from the single `gridSource` definition.
+With `prefix: "brand"`:
 
-## Deliverables
-1. `buildGridTokens(source, breakpoints, options)` returning normalized tokens for columns, gutters, spacing, layout styles, and containers.
-2. `serializeGridToCSS(tokens, options)` emitting CSS variables under the theme prefix (`--dt-grid-…`).
-3. Helper factories (`buildColumnHelpers`, `buildContainerHelpers`, `spacingMixin`, etc.) that consume tokens and existing `theme.media` to generate ready-to-use styled-components snippets.
-4. Documentation mirroring this file plus examples (e.g., building a layout, spacing utilities).
+| Source | CSS Variable |
+|---|---|
+| spacing base | `--brand-layout-spacing--base` |
+| spacing relaxed | `--brand-layout-spacing--relaxed` |
+| gutters compact | `--brand-layout-gutters--compact` |
+| aspectRatio video | `--brand-layout-aspect-ratio--video` |
+| container inset | `--brand-layout-container--inset` → `var(--brand-layout-spacing--base)` |
+| container wide inset | `--brand-layout-container--wide--inset` → `var(--brand-layout-spacing--relaxed)` |
+| columns gutter | `--brand-layout-columns--gutter` → `var(--brand-layout-gutters--base)` |
+
+Container and column variables **reference** spacing/gutter variables via `var(--)`. Responsive spacing changes cascade automatically.
+
+---
+
+## Options
+
+Passed as `options.layout` to `createTheme`:
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `prefix` | `string` | `"dt"` | CSS variable prefix. |
+| `classPrefix` | `string` | same as prefix | Utility class prefix. |
+
+---
+
+## Helper hooks
+
+The layout helper (`createLayoutThemeHelper`) declares:
+
+| Hook | What it does |
+|---|---|
+| `normalizeProperty` | Forces `none: 0` on spacing/gutters. |
+| `tokenizeProperty` | Builds variant maps from normalized properties. |
+| `mapCssVariables` | Custom naming: `--prefix-layout-{property}--{variant}`. Formats spacing/gutter values as px. |
+| `interpretRecipe` | Resolves recipe props (paddingY, gap, etc.) to `var(--)` refs. |
+| `buildSlice` | (Currently empty — no extra domain utilities.) |

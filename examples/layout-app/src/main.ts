@@ -83,10 +83,10 @@ const maxSpacing = Math.max(...Object.values(spacingVariants).map(v => typeof v 
 
 spacingSection.innerHTML = `
   <h2>Spacing tokens</h2>
-  <div style="display:flex;gap:0;border-radius:8px;overflow:hidden">
+  <div style="display:flex;gap:4px">
     ${Object.entries(spacingVariants).map(([name, value]) => {
       const numVal = typeof value === "number" ? value : parseInt(String(value)) || 0;
-      return `<div style="flex:1 1 0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#4dabf7;height:80px;overflow:hidden">
+      return `<div style="flex:1 1 0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#4dabf7;height:80px;overflow:hidden;border-radius:6px">
         <div style="width:calc(100% - ${numVal * 2}px);height:calc(100% - ${numVal * 2}px);background:#fff;border-radius:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:8px;min-height:8px">
           <span style="font-size:0.7rem;font-weight:600;color:#1d1d1f">${name}</span>
           <span style="font-size:0.6rem;color:#666">${numVal}px</span>

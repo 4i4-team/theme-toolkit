@@ -220,21 +220,34 @@ export const buildStackNodes = (
   return rules;
 };
 
-export const buildContainerNodes = (
-  container: Record<string, { base: unknown; variants?: Record<string, unknown> }> | undefined,
-  prefix: string,
-  classPrefix: string,
-  breakpoints: Record<string, number>,
-  media: MediaDescriptor<string>,
-  spacingResolver: ResolveCssVariableName,
-): { variables: CssVariablesNode[]; rules: CssRuleNode[] } => {
-  if (!container) {
-    return buildDefaultContainerNodes(prefix, classPrefix, breakpoints, media, spacingResolver);
-  }
-  return buildDefaultContainerNodes(prefix, classPrefix, breakpoints, media, spacingResolver);
+type ContainerConfig = {
+  mode: string;
+  inset?: string;
+  gutter?: string;
+  direction?: string;
+  align?: string;
+  justify?: string;
+  maxWidth?: string | number;
 };
 
-const buildDefaultContainerNodes = (
+const resolveContainerConfig = (raw: unknown): ContainerConfig => {
+  if (!raw || typeof raw === "string") {
+    return { mode: raw as string ?? "fixed" };
+  }
+  const obj = raw as Record<string, unknown>;
+  return {
+    mode: (obj.base as string) ?? "fixed",
+    inset: obj.inset as string | undefined,
+    gutter: obj.gutter as string | undefined,
+    direction: obj.direction as string | undefined,
+    align: obj.align as string | undefined,
+    justify: obj.justify as string | undefined,
+    maxWidth: obj.maxWidth as string | number | undefined,
+  };
+};
+
+export const buildContainerNodes = (
+  containerInput: unknown,
   prefix: string,
   classPrefix: string,
   breakpoints: Record<string, number>,
@@ -242,40 +255,111 @@ const buildDefaultContainerNodes = (
   spacingResolver: ResolveCssVariableName,
 ): { variables: CssVariablesNode[]; rules: CssRuleNode[] } => {
   const normalizedPrefix = normalizeCssVariablePrefix(prefix);
-  const insetVar = spacingResolver("spacing", "base");
-
-  const variables: CssVariablesNode[] = [{
-    kind: "variables",
-    selector: ":root",
-    variables: {
-      [`${normalizedPrefix}-layout-container--inset`]: `var(${insetVar})`,
-    },
-  }];
-
-  const selector = `.${classPrefix}-container`;
-  const declarations: CssDeclaration[] = [
-    { property: "box-sizing", value: "border-box" },
-    { property: "width", value: "100%" },
-    { property: "margin-left", value: "auto" },
-    { property: "margin-right", value: "auto" },
-    { property: "padding-left", value: `var(${normalizedPrefix}-layout-container--inset)` },
-    { property: "padding-right", value: `var(${normalizedPrefix}-layout-container--inset)` },
-  ];
-
-  const rules: CssRuleNode[] = [{ kind: "rule", selector, declarations }];
-
+  const allVariables: Record<string, string> = {};
+  const allRules: CssRuleNode[] = [];
   const sortedKeys = Object.keys(breakpoints).sort((a, b) => breakpoints[a] - breakpoints[b]);
-  for (const key of sortedKeys) {
-    const width = breakpoints[key];
-    if (width === 0) continue;
-    const mediaQuery = media.min(key);
-    rules.push({
-      kind: "rule",
-      selector,
-      media: mediaQuery,
-      declarations: [{ property: "max-width", value: `${width}px` }],
-    });
+
+  const extended = containerInput && typeof containerInput === "object"
+    ? containerInput as { base?: unknown; variants?: Record<string, unknown> }
+    : undefined;
+
+  const baseConfig = resolveContainerConfig(extended?.base ?? containerInput ?? "fixed");
+  const variants = extended?.variants ?? {};
+
+  const buildSingleContainer = (name: string | null, config: ContainerConfig) => {
+    const suffix = name ? `--${sanitizeIdentifierSegment(name)}` : "";
+    const selector = name
+      ? `.${classPrefix}-container-${sanitizeIdentifierSegment(name)}`
+      : `.${classPrefix}-container`;
+
+    const insetRef = config.inset ?? baseConfig.inset ?? "base";
+    const gutterRef = config.gutter ?? baseConfig.gutter;
+    const mode = config.mode ?? baseConfig.mode ?? "fixed";
+    const direction = config.direction ?? baseConfig.direction;
+    const align = config.align ?? baseConfig.align;
+    const justify = config.justify ?? baseConfig.justify;
+    const maxWidthValue = config.maxWidth ?? (name ? baseConfig.maxWidth : undefined);
+
+    const insetVarName = `${normalizedPrefix}-layout-container${suffix}--inset`;
+    allVariables[insetVarName] = `var(${spacingResolver("spacing", insetRef)})`;
+
+    if (gutterRef) {
+      const gutterVarName = `${normalizedPrefix}-layout-container${suffix}--gutter`;
+      allVariables[gutterVarName] = `var(${spacingResolver("gutters", gutterRef)})`;
+    }
+
+    const declarations: CssDeclaration[] = [
+      { property: "box-sizing", value: "border-box" },
+      { property: "width", value: "100%" },
+      { property: "margin-left", value: "auto" },
+      { property: "margin-right", value: "auto" },
+      { property: "padding-left", value: `var(${insetVarName})` },
+      { property: "padding-right", value: `var(${insetVarName})` },
+    ];
+
+    if (gutterRef) {
+      const gutterVarName = `${normalizedPrefix}-layout-container${suffix}--gutter`;
+      declarations.push({ property: "gap", value: `var(${gutterVarName})` });
+    }
+
+    if (direction) {
+      declarations.push({ property: "display", value: "flex" });
+      declarations.push({ property: "flex-direction", value: direction });
+    }
+    if (align) declarations.push({ property: "align-items", value: align });
+    if (justify) declarations.push({ property: "justify-content", value: justify });
+
+    if (mode === "fixed") {
+      const maxBp = typeof maxWidthValue === "string" && breakpoints[maxWidthValue] !== undefined
+        ? maxWidthValue
+        : undefined;
+      const maxBpIndex = maxBp ? sortedKeys.indexOf(maxBp) : -1;
+
+      for (let i = 0; i < sortedKeys.length; i++) {
+        const key = sortedKeys[i];
+        const refKey = maxBpIndex >= 0 && i > maxBpIndex ? maxBp! : key;
+        const width = breakpoints[refKey];
+        if (width === 0) {
+          if (i === 0) declarations.push({ property: "max-width", value: "none" });
+          continue;
+        }
+        if (i === 0) {
+          declarations.push({ property: "max-width", value: `${width}px` });
+        } else {
+          allRules.push({
+            kind: "rule", selector,
+            media: media.min(key),
+            declarations: [{ property: "max-width", value: `${width}px` }],
+          });
+        }
+      }
+    } else if (mode === "fluid") {
+      if (maxWidthValue !== undefined) {
+        const resolved = typeof maxWidthValue === "number"
+          ? `${maxWidthValue}px`
+          : breakpoints[maxWidthValue] !== undefined
+            ? `${breakpoints[maxWidthValue]}px`
+            : String(maxWidthValue);
+        declarations.push({ property: "max-width", value: resolved });
+      }
+    } else {
+      const customWidth = typeof mode === "number" ? `${mode}px` : mode;
+      declarations.push({ property: "max-width", value: customWidth });
+    }
+
+    allRules.unshift({ kind: "rule", selector, declarations });
+  };
+
+  buildSingleContainer(null, baseConfig);
+
+  for (const [name, raw] of Object.entries(variants)) {
+    const variantConfig = resolveContainerConfig(raw);
+    buildSingleContainer(name, variantConfig);
   }
 
-  return { variables, rules };
+  const variables: CssVariablesNode[] = Object.keys(allVariables).length
+    ? [{ kind: "variables" as const, selector: ":root", variables: allVariables }]
+    : [];
+
+  return { variables, rules: allRules };
 };

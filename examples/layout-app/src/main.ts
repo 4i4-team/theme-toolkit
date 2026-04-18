@@ -103,17 +103,17 @@ const gutterSection = document.createElement("section");
 const gutterVariants = tokens?.gutters?.variants ?? {};
 gutterSection.innerHTML = `
   <h2>Gutter tokens</h2>
-  <p style="font-size:0.8rem;color:#666">The green space between boxes represents the gutter value.</p>
-  <div style="display:flex;flex-direction:column;gap:12px">
+  <div style="display:flex;gap:4px">
     ${Object.entries(gutterVariants).map(([name, value]) => {
       const numVal = typeof value === "number" ? value : parseInt(String(value)) || 0;
-      return `<div>
-        <div style="font-size:0.75rem;font-weight:600;margin-bottom:4px">${name} <span style="font-weight:400;color:#666">(${numVal}px)</span></div>
-        <div style="display:flex;gap:${numVal}px;background:#69db7c;padding:4px;border-radius:6px">
-          <div style="flex:1;height:36px;background:#fff;border-radius:4px"></div>
-          <div style="flex:1;height:36px;background:#fff;border-radius:4px"></div>
-          <div style="flex:1;height:36px;background:#fff;border-radius:4px"></div>
+      return `<div style="flex:1 1 0;display:flex;flex-direction:column;align-items:center;border-radius:6px;overflow:hidden">
+        <div style="display:flex;gap:${numVal}px;background:#e9ecef;border:2px dashed #adb5bd;border-radius:6px;padding:6px;width:100%;height:70px;align-items:stretch">
+          <div style="flex:1;background:#fff;border-radius:3px"></div>
+          <div style="flex:1;background:#fff;border-radius:3px"></div>
+          <div style="flex:1;background:#fff;border-radius:3px"></div>
         </div>
+        <span style="font-size:0.7rem;font-weight:600;margin-top:4px">${name}</span>
+        <span style="font-size:0.6rem;color:#666">${numVal}px</span>
       </div>`;
     }).join("")}
   </div>

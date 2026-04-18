@@ -107,10 +107,10 @@ gutterSection.innerHTML = `
     ${Object.entries(gutterVariants).map(([name, value]) => {
       const numVal = typeof value === "number" ? value : parseInt(String(value)) || 0;
       return `<div style="flex:1 1 0;display:flex;flex-direction:column;align-items:center;border-radius:6px;overflow:hidden">
-        <div style="display:flex;gap:${numVal}px;background:#e9ecef;border:2px dashed #adb5bd;border-radius:6px;padding:6px;width:100%;height:70px;align-items:stretch">
-          <div style="flex:1;background:#fff;border-radius:3px"></div>
-          <div style="flex:1;background:#fff;border-radius:3px"></div>
-          <div style="flex:1;background:#fff;border-radius:3px"></div>
+        <div style="display:flex;gap:${numVal}px;background:#e9ecef;border-radius:6px;padding:6px;width:100%;height:70px;align-items:stretch">
+          <div style="flex:1;background:#fff;border:2px dashed #adb5bd;border-radius:3px"></div>
+          <div style="flex:1;background:#fff;border:2px dashed #adb5bd;border-radius:3px"></div>
+          <div style="flex:1;background:#fff;border:2px dashed #adb5bd;border-radius:3px"></div>
         </div>
         <span style="font-size:0.7rem;font-weight:600;margin-top:4px">${name}</span>
         <span style="font-size:0.6rem;color:#666">${numVal}px</span>

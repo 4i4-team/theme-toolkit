@@ -23,6 +23,17 @@ export const rawTheme = {
       base: "auto",
       variants: { square: "1", video: "16/9", portrait: "3/4" },
     },
+    container: {
+      base: "fixed",
+      inset: "base",
+      gutter: "base",
+      direction: "column" as const,
+      variants: {
+        narrow: { base: "fixed", maxWidth: "md" },
+        wide: { base: "fluid", maxWidth: 1600, inset: "relaxed" },
+        full: { base: "fluid" },
+      },
+    },
     columns: 12,
     grids: {
       cards: {

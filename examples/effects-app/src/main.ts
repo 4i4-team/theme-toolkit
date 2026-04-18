@@ -144,7 +144,7 @@ recipeSection.innerHTML = `
       `<div class="card-demo ${cls}">${name}</div>`
     ).join("")}
   </div>
-  <p>Focus recipes (hover to see):</p>
+  <p>Focus recipes:</p>
   <div class="row" style="margin-bottom:1rem">
     ${Object.entries(focusClasses).map(([name, cls]) =>
       `<div class="swatch ${cls}" style="border-radius:6px;background:#fff">${name}</div>`

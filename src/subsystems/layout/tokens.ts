@@ -260,11 +260,27 @@ export const buildContainerNodes = (
   const sortedKeys = Object.keys(breakpoints).sort((a, b) => breakpoints[a] - breakpoints[b]);
 
   const extended = containerInput && typeof containerInput === "object"
-    ? containerInput as { base?: unknown; variants?: Record<string, unknown> }
+    ? containerInput as Record<string, unknown>
     : undefined;
 
-  const baseConfig = resolveContainerConfig(extended?.base ?? containerInput ?? "fixed");
-  const variants = extended?.variants ?? {};
+  const baseConfig: ContainerConfig = extended
+    ? {
+        mode: (extended.base as string) ?? "fixed",
+        inset: extended.inset as string | undefined,
+        gutter: extended.gutter as string | undefined,
+        direction: extended.direction as string | undefined,
+        align: extended.align as string | undefined,
+        justify: extended.justify as string | undefined,
+        maxWidth: extended.maxWidth as string | number | undefined,
+      }
+    : resolveContainerConfig(containerInput ?? "fixed");
+  const variants = (extended?.variants as Record<string, unknown>) ?? {};
+  const responsiveEntries = (extended?.responsive as Array<Record<string, unknown>>) ?? [];
+
+  const selectorForTarget = (target?: string): string =>
+    target
+      ? `.${classPrefix}-container-${sanitizeIdentifierSegment(target)}`
+      : `.${classPrefix}-container`;
 
   const buildSingleContainer = (name: string | null, config: ContainerConfig) => {
     const suffix = name ? `--${sanitizeIdentifierSegment(name)}` : "";
@@ -355,6 +371,37 @@ export const buildContainerNodes = (
   for (const [name, raw] of Object.entries(variants)) {
     const variantConfig = resolveContainerConfig(raw);
     buildSingleContainer(name, variantConfig);
+  }
+
+  for (const entry of responsiveEntries) {
+    const breakpoint = entry.breakpoint as string;
+    const query = (entry.query as string) ?? "exact";
+    const target = entry.target as string | undefined;
+
+    const group = media[breakpoint];
+    if (!group) continue;
+    const mediaQuery = group[query as "min" | "max" | "exact"];
+    if (!mediaQuery) continue;
+
+    const selector = selectorForTarget(target);
+    const declarations: CssDeclaration[] = [];
+
+    if (entry.direction) declarations.push({ property: "flex-direction", value: entry.direction as string });
+    if (entry.align) declarations.push({ property: "align-items", value: entry.align as string });
+    if (entry.justify) declarations.push({ property: "justify-content", value: entry.justify as string });
+    if (entry.inset) {
+      const insetVar = spacingResolver("spacing", entry.inset as string);
+      declarations.push({ property: "padding-left", value: `var(${insetVar})` });
+      declarations.push({ property: "padding-right", value: `var(${insetVar})` });
+    }
+    if (entry.gutter) {
+      const gutterVar = spacingResolver("gutters", entry.gutter as string);
+      declarations.push({ property: "gap", value: `var(${gutterVar})` });
+    }
+
+    if (declarations.length) {
+      allRules.push({ kind: "rule", selector, media: mediaQuery, declarations });
+    }
   }
 
   const variables: CssVariablesNode[] = Object.keys(allVariables).length

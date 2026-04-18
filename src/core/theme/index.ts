@@ -60,6 +60,11 @@ import {
   createEffectsCssVariableResolver,
 } from "../../subsystems/effects";
 import type { EffectsSource, EffectsTokens as EffectsTokensType, EffectsBuilderOptions } from "../../subsystems/effects";
+import {
+  createComponentsThemeHelper,
+  resolveComponentReferences,
+} from "../../subsystems/components";
+import type { ComponentsSource, ComponentsBuilderOptions, ResolvedComponentClass } from "../../subsystems/components";
 import type { MediaHelpers } from "../../adapters/styled-components/media";
 import type { PropertyValue } from "../common";
 
@@ -74,6 +79,7 @@ type ThemeWithBreakpoints<T extends string, TPaletteKey extends string> = {
   colors?: ColorsSubsystemSource<TPaletteKey, T>;
   layout?: LayoutSource;
   effects?: EffectsSource;
+  components?: ComponentsSource;
 };
 
 type PaletteComputedProperties<TPaletteKey extends string, TBreakpoint extends string> = {
@@ -143,6 +149,18 @@ type ThemeWithEffects = {
   effects: EffectsThemeSlice;
 };
 
+type ComponentsComputedProperties = {
+  readonly nodes: CssNode[];
+  readonly classes: Record<string, Record<string, ResolvedComponentClass>>;
+  getClass: (group: string, variant: string) => string | undefined;
+};
+
+type ComponentsThemeSlice = Record<string, unknown> & ComponentsComputedProperties;
+
+type ThemeWithComponents = {
+  components: ComponentsThemeSlice;
+};
+
 type PaletteRecipeOutput<TBreakpoint extends string> = {
   nodes: CssRuleNode[];
   classes: Record<string, Record<string, string>>;
@@ -155,6 +173,7 @@ type CreateThemeOptions = {
   typography?: { unit?: "px" | "rem"; prefix?: string };
   layout?: LayoutBuilderOptions;
   effects?: EffectsBuilderOptions;
+  components?: ComponentsBuilderOptions;
 };
 
 const resolveMediaConfig = <T extends string, TPaletteKey extends string, TTheme extends ThemeWithBreakpoints<T, TPaletteKey>>(
@@ -183,6 +202,7 @@ export function createTheme<
   ThemeWithTypography &
   ThemeWithLayout &
   ThemeWithEffects &
+  ThemeWithComponents &
   ThemeWithAggregateCss {
   const paletteHelper = createPaletteThemeHelper();
   const clone = { ...theme } as TTheme &
@@ -1132,6 +1152,106 @@ export function createTheme<
     configurable: true,
   });
 
+  // --- Components (composition) subsystem ---
+  const componentsHelper = createComponentsThemeHelper();
+  const componentsOptions = options?.components as ComponentsBuilderOptions | undefined;
+  const rawComponentsSource = clone.components as ComponentsSource | undefined;
+  const componentsClassPrefix = sanitizeIdentifierSegment(componentsOptions?.classPrefix ?? componentsOptions?.prefix ?? "dt-comp") || "dt-comp";
+
+  const getSubsystemRecipeClass = (subsystem: string, group: string, variant: string): string | undefined => {
+    switch (subsystem) {
+      case "colors": { ensurePaletteRecipes(); return cachedPaletteRecipes.classes[group]?.[variant]; }
+      case "typography": return cachedTypographyRecipes.classes[group]?.[variant];
+      case "layout": return cachedLayoutRecipes.classes[group]?.[variant];
+      case "effects": return cachedEffectsRecipes.classes[group]?.[variant];
+      default: return undefined;
+    }
+  };
+
+  const buildComponentsOutput = (): {
+    nodes: CssRuleNode[];
+    classes: Record<string, Record<string, ResolvedComponentClass>>;
+  } => {
+    const recipeSource = rawComponentsSource?.recipes;
+    if (!recipeSource || !Object.keys(recipeSource).length || !componentsHelper.interpretRecipe) {
+      return { nodes: [], classes: {} };
+    }
+    const allowedBreakpoints = Object.keys(clone.breakpoints) as T[];
+    const allNodes: CssRuleNode[] = [];
+    const allClasses: Record<string, Record<string, ResolvedComponentClass>> = {};
+
+    for (const [groupName, groupDef] of Object.entries(recipeSource)) {
+      const groupPath = `components.recipes.${groupName}`;
+      const normalized = normalizeRecipeGroup(groupDef as any, { propertyPath: groupPath, allowedBreakpoints });
+      const resolver = createRecipeVariantResolver(
+        normalized,
+        (variantName, variant, resolve) =>
+          componentsHelper.interpretRecipe!(variantName, variant as any, {
+            tokens: {},
+            breakpoints: clone.breakpoints,
+            resolveCssVariable: (() => "") as any,
+            resolveRecipeVariant: resolve as any,
+            groupPath,
+            options: componentsOptions,
+          }) as any,
+        { groupPath },
+      );
+
+      const interpreted = resolver.resolveAll();
+      const selectorPrefix = `${componentsClassPrefix}-${sanitizeIdentifierSegment(groupName)}`;
+      const { nodes, variants } = generateRecipeCss(interpreted as any, {
+        media: cachedMediaDescriptor as MediaDescriptor<string>,
+        selectorBuilder: variantName => `.${selectorPrefix}-${sanitizeIdentifierSegment(variantName)}`,
+      });
+      allNodes.push(...nodes);
+
+      const classEntries = assignRecipeClasses(variants, { prefix: selectorPrefix });
+      allClasses[groupName] = {};
+
+      for (const entry of classEntries) {
+        const rawVariant = (groupDef as Record<string, Record<string, unknown>>)[entry.variant];
+        const referenced = rawVariant
+          ? resolveComponentReferences(rawVariant, getSubsystemRecipeClass)
+          : [];
+        const classes = [...referenced, entry.className];
+        allClasses[groupName][entry.variant] = {
+          classes,
+          className: classes.join(" "),
+        };
+      }
+    }
+
+    return { nodes: allNodes, classes: allClasses };
+  };
+
+  const cachedComponentsOutput = buildComponentsOutput();
+
+  const buildComponentsSlice = (): ComponentsThemeSlice => {
+    if (!rawComponentsSource) return {} as unknown as ComponentsThemeSlice;
+    const slice = { recipes: rawComponentsSource.recipes ?? {} } as unknown as ComponentsThemeSlice;
+
+    Object.defineProperty(slice, "nodes", {
+      get: () => cachedComponentsOutput.nodes,
+      enumerable: true, configurable: true,
+    });
+    Object.defineProperty(slice, "classes", {
+      get: () => cachedComponentsOutput.classes,
+      enumerable: true, configurable: true,
+    });
+    Object.defineProperty(slice, "getClass", {
+      get: () => (group: string, variant: string) =>
+        cachedComponentsOutput.classes[group]?.[variant]?.className,
+      enumerable: true, configurable: true,
+    });
+
+    return slice;
+  };
+
+  Object.defineProperty(clone, "components", {
+    value: buildComponentsSlice(),
+    enumerable: true, configurable: true, writable: true,
+  });
+
   const collectNodes = (): CssNode[] => {
     const nodes: CssNode[] = [];
     nodes.push(...getPaletteVariables());
@@ -1147,6 +1267,7 @@ export function createTheme<
     nodes.push(...cachedLayoutRecipes.nodes);
     nodes.push(...cachedEffectsVariables);
     nodes.push(...cachedEffectsRecipes.nodes);
+    nodes.push(...cachedComponentsOutput.nodes);
     return nodes;
   };
 
@@ -1166,5 +1287,12 @@ export function createTheme<
     configurable: true,
   });
 
-  return clone;
+  return clone as unknown as TTheme &
+    ThemeWithMedia<T> &
+    ThemeWithPalette<TPaletteKey, T> &
+    ThemeWithTypography &
+    ThemeWithLayout &
+    ThemeWithEffects &
+    ThemeWithComponents &
+    ThemeWithAggregateCss;
 }

@@ -6,4 +6,5 @@ export * from "./subsystems/layout";
 export * from "./adapters/styled-components/media";
 export * from "./subsystems/typography";
 export * from "./subsystems/effects";
+export * from "./subsystems/components";
 export * from "./adapters/styled-components/types";

@@ -9,11 +9,13 @@ Design-token engine and recipe system for building framework-agnostic UI kits. T
 - [`docs/typography/README.md`](docs/typography/README.md) — typography subsystem reference: 9 PropertyValue properties, fontSize scale generation, recipes, helper hooks.
 - [`docs/layout/README.md`](docs/layout/README.md) — layout subsystem reference: spacing, gutters, aspectRatio, container (3 modes), columns, grids, stacks, recipes.
 - [`docs/effects/README.md`](docs/effects/README.md) — effects subsystem reference: radius, shadow, blur, zIndex, opacity, outline, borderWidth, transitions, recipes.
+- [`docs/components/README.md`](docs/components/README.md) — components (composition) subsystem reference: cross-subsystem recipe references, delta classes, resolved class names.
 - [`README.md`](README.md) — quick start and public API overview.
 - [`examples/colors-app`](examples/colors-app/) — vanilla TS colors example.
 - [`examples/typography-app`](examples/typography-app/) — vanilla TS typography example.
 - [`examples/layout-app`](examples/layout-app/) — vanilla TS layout example.
 - [`examples/effects-app`](examples/effects-app/) — vanilla TS effects example.
+- [`examples/components-app`](examples/components-app/) — vanilla TS components (composition) example.
 
 ## Source structure
 
@@ -27,10 +29,10 @@ src/
     theme/                 createTheme + SubsystemHelper contract types
   subsystems/              domain subsystems (plug into the core pipeline)
     colors/                reference implementation (fully ported to new contract)
-    typography/            legacy — not yet ported
-    layout/                legacy — not yet ported
-    media/                 SC-wrapped media templates (legacy; Phase-2 → adapters/)
-    effects/               types + builder, not yet integrated
+    typography/            fully ported to new contract
+    layout/                fully ported to new contract
+    effects/               fully ported to new contract
+    components/            composition subsystem (cross-subsystem recipe references)
   adapters/                framework-specific wrappers
     styled-components/     SC DefaultTheme augmentation
 ```
@@ -196,9 +198,23 @@ The effects subsystem (`src/subsystems/effects/`) handles visual effects — all
 
 See [`docs/effects/README.md`](docs/effects/README.md) for the complete reference.
 
+### Components (composition) subsystem
+
+The components subsystem (`src/subsystems/components/`) composes recipes from multiple primary subsystems into unified component class names:
+
+- **Input:** `rawTheme.components.recipes` — recipe groups where each variant references other subsystems' recipes plus optional CSS overrides.
+- **Recipe props:** `colors`, `typography`, `layout`, `effects` (each `"group.variant"` dot-notation reference), `css` (raw CSS overrides as delta).
+- **Resolution:** referenced `"group.variant"` strings are looked up in the corresponding subsystem's generated classes. The found class names are collected alongside a delta class for CSS overrides.
+- **Output shape:** `theme.components.classes` returns `{ group: { variant: ResolvedComponentClass } }` where `ResolvedComponentClass = { classes: string[], className: string }`.
+- **getClass():** returns the combined `className` string: `"dt-color-solid-primary dt-type-heading-large dt-comp-buttons-primary"`.
+- **CSS output:** only delta classes are generated. Referenced subsystem classes are reused from their own CSS output.
+- **Hooks:** `interpretRecipe` (extracts `css:` overrides), `dependsOn: ["colors", "typography", "layout", "effects"]`.
+
+See [`docs/components/README.md`](docs/components/README.md) for the complete reference.
+
 ## For consumers
 
-1. Define your raw theme: `{ breakpoints, colors: { ... }, typography: { ... }, layout: { ... }, effects: { radius, shadow, blur, zIndex, opacity, outline, borderWidth, transitions, recipes } }`.
+1. Define your raw theme: `{ breakpoints, colors: { ... }, typography: { ... }, layout: { ... }, effects: { ... }, components: { recipes: { ... } } }`.
 2. Call `createTheme(rawTheme, options)`. Options control CSS variable prefixes, units, class prefixes per subsystem.
 3. Inject `theme.css` as a global stylesheet (one `<style>` tag, or a `.css` file, or however your framework works).
 4. Reference recipe class names via `theme.colors.getClass("group", "variant")` or `theme.typography.getClass("group", "variant")`.

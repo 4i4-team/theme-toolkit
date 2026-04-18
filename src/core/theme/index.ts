@@ -46,29 +46,28 @@ import {
   mapTypographyCssVariables,
 } from "../../subsystems/typography";
 import type { TypographySource, TypographyTokens, TypographyBuilderOptions, TypographyRecipeSource } from "../../subsystems/typography";
-import { buildGridTokens } from "../../subsystems/layout";
-import type {
-  LayoutConfig,
-  LegacyLayoutTokens,
-  LayoutHelpers,
-  LayoutBuilderOptions,
+import {
+  createLayoutThemeHelper,
+  createLayoutCssVariableResolver,
+  buildColumnsNodes,
+  buildGridNodes,
+  buildStackNodes,
+  buildContainerNodes,
 } from "../../subsystems/layout";
+import type { LayoutSource, LayoutTokens as LayoutTokensType, LayoutBuilderOptions } from "../../subsystems/layout";
 import type { MediaHelpers } from "../../adapters/styled-components/media";
+import type { PropertyValue } from "../common";
 
 type ColorsSubsystemSource<TPaletteKey extends string, TBreakpoint extends string> =
   Record<TPaletteKey, PaletteSource> & {
     recipes?: PaletteRecipeSource<TBreakpoint>;
   };
 
-import type { PropertyValue } from "../common";
-
-type LayoutSubsystemSource = import("../../subsystems/layout").LayoutSource;
-
 type ThemeWithBreakpoints<T extends string, TPaletteKey extends string> = {
   breakpoints: Breakpoints<T>;
   typography?: TypographySource;
   colors?: ColorsSubsystemSource<TPaletteKey, T>;
-  layout?: LayoutSubsystemSource;
+  layout?: LayoutSource;
 };
 
 type PaletteComputedProperties<TPaletteKey extends string, TBreakpoint extends string> = {
@@ -110,22 +109,18 @@ type ThemeWithTypography = {
   typography: TypographyThemeSlice;
 };
 
-type ThemeWithLayout<T extends string> = {
-  layoutTokens?: LegacyLayoutTokens<T>;
-  layoutCSS: string;
-  layoutSpacing: LayoutHelpers<T>["spacing"];
-  layoutGutter: LayoutHelpers<T>["gutter"];
-  layoutColumns: LayoutHelpers<T>["buildColumns"];
-  layoutContainer: LayoutHelpers<T>["buildContainer"];
-  layoutStyle: LayoutHelpers<T>["layout"];
-  layoutStack: LayoutHelpers<T>["stack"];
-  layoutGrid: LayoutHelpers<T>["grid"];
-  layoutClassPrefix: string;
-  layoutColumnsMixin: () => unknown;
-  layoutContainerMixin: (name: string) => unknown;
-  layoutStyleMixin: (group: string, variant: string) => unknown;
-  layoutStackMixin: (name: string) => unknown;
-  layoutGridMixin: (name: string) => unknown;
+type LayoutComputedProperties = {
+  readonly tokens: LayoutTokensType;
+  readonly variables: CssVariablesNode[];
+  readonly nodes: CssNode[];
+  readonly classes: Record<string, Record<string, string>>;
+  getClass: (group: string, variant: string) => string | undefined;
+};
+
+type LayoutThemeSlice = Record<string, unknown> & LayoutComputedProperties;
+
+type ThemeWithLayout = {
+  layout: LayoutThemeSlice;
 };
 
 type PaletteRecipeOutput<TBreakpoint extends string> = {
@@ -153,136 +148,6 @@ const resolveMediaConfig = <T extends string, TPaletteKey extends string, TTheme
       16),
 });
 
-const createMissingLayoutHelpers = <T extends string>(): ThemeWithLayout<T> => {
-  const error = () => {
-    throw new Error("Layout source is not defined.");
-  };
-
-  return {
-    layoutTokens: undefined,
-    layoutCSS: "",
-    layoutSpacing: () => error(),
-    layoutGutter: () => error(),
-    layoutColumns: () => error(),
-    layoutContainer: () => error(),
-    layoutStyle: () => error(),
-    layoutStack: () => error(),
-    layoutGrid: () => error(),
-    layoutClassPrefix: "dt",
-    layoutColumnsMixin: () => error(),
-    layoutContainerMixin: () => error(),
-    layoutStyleMixin: () => error(),
-    layoutStackMixin: () => error(),
-    layoutGridMixin: () => error(),
-  };
-};
-
-const convertPropertyValueToTokenMap = (
-  input: PropertyValue<number> | undefined,
-): Record<string, number | { value: number; responsive?: Array<{ breakpoint: string; value: number }> }> | number => {
-  if (input === undefined) return { default: 0, none: 0 };
-  if (typeof input === "number") return { default: input, none: 0 };
-  const extended = input as { base: number; variants?: Record<string, number | { base: number }>; responsive?: Array<Record<string, unknown>> };
-  const result: Record<string, unknown> = { default: extended.base, none: 0 };
-  if (extended.variants) {
-    for (const [name, val] of Object.entries(extended.variants)) {
-      result[name] = typeof val === "number" ? val : (val as { base: number }).base;
-    }
-  }
-  result.none = 0;
-  if (extended.responsive) {
-    for (const entry of extended.responsive) {
-      const target = entry.target as string | undefined;
-      const base = entry.base as number | undefined;
-      const breakpoint = entry.breakpoint as string;
-      const query = entry.query as string | undefined;
-      if (target && base !== undefined) {
-        const existing = result[target];
-        if (typeof existing === "number") {
-          result[target] = {
-            value: existing,
-            responsive: [{ breakpoint, query, value: base }],
-          };
-        } else if (existing && typeof existing === "object") {
-          const obj = existing as { value: number; responsive?: Array<Record<string, unknown>> };
-          obj.responsive = obj.responsive ?? [];
-          obj.responsive.push({ breakpoint, query, value: base });
-        }
-      }
-    }
-  }
-  return result as any;
-};
-
-const convertLayoutSource = <T extends string>(
-  source: LayoutSubsystemSource | undefined,
-): LayoutConfig<T> | undefined => {
-  if (!source) return undefined;
-  return {
-    spacing: convertPropertyValueToTokenMap(source.spacing) as any,
-    gutters: source.gutters ? convertPropertyValueToTokenMap(source.gutters) as any : undefined,
-    columns: source.columns as any,
-    containers: source.container as any,
-    styles: source.recipes as any,
-    stacks: source.stacks as any,
-    grids: source.grids as any,
-  };
-};
-
-const buildLayoutHelpers = <T extends string>(
-  layout: LayoutSubsystemSource | undefined,
-  breakpoints: Breakpoints<T>,
-  options?: LayoutBuilderOptions,
-): ThemeWithLayout<T> => {
-  const converted = convertLayoutSource(layout);
-  if (!converted) {
-    return createMissingLayoutHelpers();
-  }
-
-  const { tokens, helpers, toCSS } = buildGridTokens({ layout: converted } as any, breakpoints, options as any);
-
-  return {
-    layoutTokens: tokens,
-    layoutCSS: toCSS(),
-    layoutSpacing: helpers.spacing,
-    layoutGutter: helpers.gutter,
-    layoutColumns: helpers.buildColumns,
-    layoutContainer: helpers.buildContainer,
-    layoutStyle: helpers.layout,
-    layoutStack: helpers.stack,
-    layoutGrid: helpers.grid,
-    layoutClassPrefix: helpers.classPrefix,
-    layoutColumnsMixin: () => helpers.columnsMixin(),
-    layoutContainerMixin: (name: string) => {
-      const mixin = helpers.containerMixin(name);
-      if (!mixin) {
-        throw new Error(`Layout container "${name}" is not defined.`);
-      }
-      return mixin;
-    },
-    layoutStyleMixin: (group: string, variant: string) => {
-      const mixin = helpers.styleMixin(group, variant);
-      if (!mixin) {
-        throw new Error(`Layout style "${group}.${variant}" is not defined.`);
-      }
-      return mixin;
-    },
-    layoutStackMixin: (name: string) => {
-      const mixin = helpers.stackMixin(name);
-      if (!mixin) {
-        throw new Error(`Layout stack "${name}" is not defined.`);
-      }
-      return mixin;
-    },
-    layoutGridMixin: (name: string) => {
-      const mixin = helpers.gridMixin(name);
-      if (!mixin) {
-        throw new Error(`Layout grid "${name}" is not defined.`);
-      }
-      return mixin;
-    },
-  };
-};
 
 export function createTheme<
   T extends string,
@@ -295,7 +160,7 @@ export function createTheme<
   ThemeWithMedia<T> &
   ThemeWithPalette<TPaletteKey, T> &
   ThemeWithTypography &
-  ThemeWithLayout<T> &
+  ThemeWithLayout &
   ThemeWithAggregateCss {
   const paletteHelper = createPaletteThemeHelper();
   const clone = { ...theme } as TTheme &
@@ -303,7 +168,7 @@ export function createTheme<
     ThemeWithBreakpoints<T, TPaletteKey> &
     ThemeWithPalette<TPaletteKey, T> &
     ThemeWithTypography &
-    ThemeWithLayout<T> &
+    ThemeWithLayout &
     ThemeWithAggregateCss;
 
   const extractPaletteProperties = (
@@ -700,13 +565,206 @@ export function createTheme<
       cachedTypographyVariables = [...baseNode, ...responsiveNodes];
     }
   };
-  let cachedLayoutSource = clone.layout;
-  let cachedLayoutBreakpoints = cachedBreakpoints;
-  let cachedLayout = buildLayoutHelpers(
-    cachedLayoutSource,
-    cachedLayoutBreakpoints,
-    options?.layout,
-  );
+  const layoutHelper = createLayoutThemeHelper();
+  const layoutOptions = options?.layout as LayoutBuilderOptions | undefined;
+  let rawLayoutSource = clone.layout as LayoutSource | undefined;
+
+  const LAYOUT_PROPERTY_KEYS = ["spacing", "gutters", "aspectRatio"];
+  const LAYOUT_RESERVED_KEYS = new Set([...LAYOUT_PROPERTY_KEYS, "container", "columns", "grids", "stacks", "recipes"]);
+
+  const extractLayoutProperties = (source: LayoutSource | undefined): Record<string, unknown> | undefined => {
+    if (!source) return undefined;
+    const props: Record<string, unknown> = {};
+    for (const key of LAYOUT_PROPERTY_KEYS) {
+      if ((source as any)[key] !== undefined) props[key] = (source as any)[key];
+    }
+    return Object.keys(props).length ? props : undefined;
+  };
+
+  const normalizeLayoutCollection = (source: LayoutSource | undefined) => {
+    if (!source) return {};
+    const properties = extractLayoutProperties(source);
+    if (!properties) return {};
+    const allowedBreakpoints = Object.keys(clone.breakpoints) as string[];
+    const result: Record<string, NormalizedPropertyValue<unknown>> = {};
+    for (const [name, raw] of Object.entries(properties)) {
+      const base = normalizePropertyValue(raw as any, { propertyPath: `layout.${name}`, allowedBreakpoints });
+      const finalized = layoutHelper.normalizeProperty ? layoutHelper.normalizeProperty(name, raw, base as any) : base;
+      validateNormalizedResponsiveRefs(finalized as any, { propertyPath: `layout.${name}` });
+      result[name] = finalized as NormalizedPropertyValue<unknown>;
+    }
+    return result;
+  };
+
+  let cachedNormalizedLayout = normalizeLayoutCollection(rawLayoutSource);
+  let cachedLayoutTokens: LayoutTokensType = generateTokens(cachedNormalizedLayout, ({ name, value }) => {
+    const baseToken = { base: (value as any).base, variants: {} };
+    return layoutHelper.tokenizeProperty ? layoutHelper.tokenizeProperty(name, value as any, baseToken) as any : baseToken;
+  });
+  const layoutPrefix = normalizeCssVariablePrefix(layoutOptions?.prefix);
+  const layoutClassPrefix = sanitizeIdentifierSegment(layoutOptions?.classPrefix ?? layoutOptions?.prefix ?? "dt") || "dt";
+
+  let cachedLayoutVariables: CssVariablesNode[] = (() => {
+    const variables = layoutHelper.mapCssVariables
+      ? layoutHelper.mapCssVariables(cachedLayoutTokens, layoutPrefix)
+      : generateCssVariables(cachedLayoutTokens, { prefix: layoutPrefix });
+    const baseNode: CssVariablesNode[] = Object.keys(variables).length
+      ? [{ kind: "variables" as const, selector: ":root", variables }]
+      : [];
+    const responsiveNodes = expandResponsiveCssVariables(cachedNormalizedLayout as any, {
+      resolveCssVariable: createLayoutCssVariableResolver(layoutOptions?.prefix ?? ""),
+      media: cachedMediaDescriptor,
+      formatValue: (v: unknown) => typeof v === "number" ? `${v}px` : String(v ?? ""),
+    });
+    return [...baseNode, ...responsiveNodes];
+  })();
+
+  const buildLayoutSpecialNodes = (): { variables: CssVariablesNode[]; rules: CssRuleNode[] } => {
+    const allVars: CssVariablesNode[] = [];
+    const allRules: CssRuleNode[] = [];
+    const spacingResolver = createLayoutCssVariableResolver(layoutOptions?.prefix ?? "");
+
+    const mediaDesc = cachedMediaDescriptor as MediaDescriptor<string>;
+
+    if (rawLayoutSource?.columns) {
+      const { variables, rules } = buildColumnsNodes(
+        rawLayoutSource.columns, layoutOptions?.prefix ?? "", layoutClassPrefix,
+        clone.breakpoints, mediaDesc,
+      );
+      allVars.push(...variables);
+      allRules.push(...rules);
+    }
+
+    allRules.push(...buildGridNodes(rawLayoutSource?.grids, layoutClassPrefix, mediaDesc, spacingResolver));
+    allRules.push(...buildStackNodes(rawLayoutSource?.stacks, layoutClassPrefix, mediaDesc, spacingResolver));
+
+    const { variables: containerVars, rules: containerRules } = buildContainerNodes(
+      rawLayoutSource?.container as any, layoutOptions?.prefix ?? "", layoutClassPrefix,
+      clone.breakpoints, mediaDesc, spacingResolver,
+    );
+    allVars.push(...containerVars);
+    allRules.push(...containerRules);
+
+    return { variables: allVars, rules: allRules };
+  };
+
+  let cachedLayoutSpecialNodes = buildLayoutSpecialNodes();
+
+  let cachedLayoutRecipes: { nodes: CssRuleNode[]; classes: Record<string, Record<string, string>> } = (() => {
+    const recipeSource = rawLayoutSource?.recipes;
+    if (!recipeSource || !Object.keys(recipeSource).length || !layoutHelper.interpretRecipe) {
+      return { nodes: [], classes: {} };
+    }
+    const allowedBreakpoints = Object.keys(clone.breakpoints) as T[];
+    const allNodes: CssRuleNode[] = [];
+    const allClasses: Record<string, Record<string, string>> = {};
+    for (const [groupName, groupDef] of Object.entries(recipeSource)) {
+      const groupPath = `layout.recipes.${groupName}`;
+      const normalized = normalizeRecipeGroup(groupDef as any, { propertyPath: groupPath, allowedBreakpoints });
+      const resolver = createRecipeVariantResolver(
+        normalized,
+        (variantName, variant, resolve) =>
+          layoutHelper.interpretRecipe!(variantName, variant as any, {
+            tokens: cachedLayoutTokens,
+            breakpoints: clone.breakpoints,
+            resolveCssVariable: createLayoutCssVariableResolver(layoutOptions?.prefix ?? ""),
+            resolveRecipeVariant: resolve as any,
+            groupPath,
+            options: layoutOptions,
+          }) as any,
+        { groupPath },
+      );
+      const interpreted = resolver.resolveAll();
+      const selectorPrefix = `${layoutClassPrefix}-${sanitizeIdentifierSegment(groupName)}`;
+      const { nodes, variants } = generateRecipeCss(interpreted as any, {
+        media: cachedMediaDescriptor,
+        selectorBuilder: variantName => `.${selectorPrefix}-${sanitizeIdentifierSegment(variantName)}`,
+      });
+      allNodes.push(...nodes);
+      const classEntries = assignRecipeClasses(variants, { prefix: selectorPrefix });
+      allClasses[groupName] = classEntries.reduce<Record<string, string>>((acc, entry) => {
+        acc[entry.variant] = entry.className;
+        return acc;
+      }, {});
+    }
+    return { nodes: allNodes, classes: allClasses };
+  })();
+
+  const syncLayout = () => {
+    if (rawLayoutSource !== cachedTypographySource) {
+      cachedNormalizedLayout = normalizeLayoutCollection(rawLayoutSource);
+      cachedLayoutTokens = generateTokens(cachedNormalizedLayout, ({ name, value }) => {
+        const baseToken = { base: (value as any).base, variants: {} };
+        return layoutHelper.tokenizeProperty ? layoutHelper.tokenizeProperty(name, value as any, baseToken) as any : baseToken;
+      });
+      const variables = layoutHelper.mapCssVariables
+        ? layoutHelper.mapCssVariables(cachedLayoutTokens, layoutPrefix)
+        : generateCssVariables(cachedLayoutTokens, { prefix: layoutPrefix });
+      const baseNode: CssVariablesNode[] = Object.keys(variables).length
+        ? [{ kind: "variables" as const, selector: ":root", variables }]
+        : [];
+      const responsiveNodes = expandResponsiveCssVariables(cachedNormalizedLayout as any, {
+        resolveCssVariable: createLayoutCssVariableResolver(layoutOptions?.prefix ?? ""),
+        media: cachedMediaDescriptor,
+        formatValue: (v: unknown) => typeof v === "number" ? `${v}px` : String(v ?? ""),
+      });
+      cachedLayoutVariables = [...baseNode, ...responsiveNodes];
+      cachedLayoutSpecialNodes = buildLayoutSpecialNodes();
+    }
+  };
+
+  const buildLayoutSlice = (): LayoutThemeSlice => {
+    if (!rawLayoutSource) return {} as unknown as LayoutThemeSlice;
+    const source = rawLayoutSource;
+    const rawProps: Record<string, unknown> = {};
+    for (const key of LAYOUT_RESERVED_KEYS) {
+      if ((source as any)[key] !== undefined) rawProps[key] = (source as any)[key];
+    }
+    const slice = { ...rawProps } as LayoutThemeSlice;
+
+    Object.defineProperty(slice, "tokens", {
+      get: () => { syncLayout(); return cachedLayoutTokens; },
+      enumerable: true, configurable: true,
+    });
+    Object.defineProperty(slice, "variables", {
+      get: () => { syncLayout(); return [...cachedLayoutVariables, ...cachedLayoutSpecialNodes.variables]; },
+      enumerable: true, configurable: true,
+    });
+    Object.defineProperty(slice, "nodes", {
+      get: () => {
+        syncLayout();
+        return [
+          ...cachedLayoutVariables,
+          ...cachedLayoutSpecialNodes.variables,
+          ...cachedLayoutSpecialNodes.rules,
+          ...cachedLayoutRecipes.nodes,
+        ];
+      },
+      enumerable: true, configurable: true,
+    });
+    Object.defineProperty(slice, "classes", {
+      get: () => cachedLayoutRecipes.classes,
+      enumerable: true, configurable: true,
+    });
+    Object.defineProperty(slice, "getClass", {
+      get: () => (group: string, variant: string) => cachedLayoutRecipes.classes[group]?.[variant],
+      enumerable: true, configurable: true,
+    });
+
+    return slice;
+  };
+
+  let cachedLayoutSlice = buildLayoutSlice();
+
+  Object.defineProperty(clone, "layout", {
+    get() { return cachedLayoutSlice; },
+    set(value: LayoutSource | undefined) {
+      rawLayoutSource = value;
+      cachedLayoutSlice = buildLayoutSlice();
+    },
+    enumerable: true,
+    configurable: true,
+  });
 
   const refreshMediaIfStale = (): void => {
     const currentBreakpoints = clone.breakpoints;
@@ -912,159 +970,6 @@ export function createTheme<
     configurable: true,
   });
 
-  const ensureLayout = () => {
-    const currentLayout = clone.layout;
-    const currentBreakpoints = clone.breakpoints;
-
-    if (
-      currentLayout !== cachedLayoutSource ||
-      currentBreakpoints !== cachedLayoutBreakpoints
-    ) {
-      cachedLayoutSource = currentLayout;
-      cachedLayoutBreakpoints = currentBreakpoints;
-      cachedLayout = buildLayoutHelpers(
-        cachedLayoutSource,
-        cachedLayoutBreakpoints,
-        options?.layout,
-      );
-    }
-  };
-
-  Object.defineProperty(clone, "layoutTokens", {
-    get() {
-      ensureLayout();
-      return cachedLayout.layoutTokens;
-    },
-    enumerable: true,
-    configurable: true,
-  });
-
-  Object.defineProperty(clone, "layoutCSS", {
-    get() {
-      ensureLayout();
-      return cachedLayout.layoutCSS;
-    },
-    enumerable: true,
-    configurable: true,
-  });
-
-  Object.defineProperty(clone, "layoutSpacing", {
-    value: (token: string) => {
-      ensureLayout();
-      return cachedLayout.layoutSpacing(token);
-    },
-    enumerable: true,
-    configurable: true,
-  });
-
-  Object.defineProperty(clone, "layoutGutter", {
-    value: (token: string) => {
-      ensureLayout();
-      return cachedLayout.layoutGutter(token);
-    },
-    enumerable: true,
-    configurable: true,
-  });
-
-  Object.defineProperty(clone, "layoutColumns", {
-    value: () => {
-      ensureLayout();
-      return cachedLayout.layoutColumns();
-    },
-    enumerable: true,
-    configurable: true,
-  });
-
-  Object.defineProperty(clone, "layoutContainer", {
-    value: (name: string) => {
-      ensureLayout();
-      return cachedLayout.layoutContainer(name);
-    },
-    enumerable: true,
-    configurable: true,
-  });
-
-  Object.defineProperty(clone, "layoutStyle", {
-    value: (group: string, variant: string) => {
-      ensureLayout();
-      return cachedLayout.layoutStyle(group, variant);
-    },
-    enumerable: true,
-    configurable: true,
-  });
-
-  Object.defineProperty(clone, "layoutStack", {
-    value: (name: string) => {
-      ensureLayout();
-      return cachedLayout.layoutStack(name);
-    },
-    enumerable: true,
-    configurable: true,
-  });
-
-  Object.defineProperty(clone, "layoutGrid", {
-    value: (name: string) => {
-      ensureLayout();
-      return cachedLayout.layoutGrid(name);
-    },
-    enumerable: true,
-    configurable: true,
-  });
-
-  Object.defineProperty(clone, "layoutClassPrefix", {
-    get() {
-      ensureLayout();
-      return cachedLayout.layoutClassPrefix;
-    },
-    enumerable: true,
-    configurable: true,
-  });
-
-  Object.defineProperty(clone, "layoutColumnsMixin", {
-    value: () => {
-      ensureLayout();
-      return cachedLayout.layoutColumnsMixin();
-    },
-    enumerable: true,
-    configurable: true,
-  });
-
-  Object.defineProperty(clone, "layoutContainerMixin", {
-    value: (name: string) => {
-      ensureLayout();
-      return cachedLayout.layoutContainerMixin(name);
-    },
-    enumerable: true,
-    configurable: true,
-  });
-
-  Object.defineProperty(clone, "layoutStyleMixin", {
-    value: (group: string, variant: string) => {
-      ensureLayout();
-      return cachedLayout.layoutStyleMixin(group, variant);
-    },
-    enumerable: true,
-    configurable: true,
-  });
-
-  Object.defineProperty(clone, "layoutStackMixin", {
-    value: (name: string) => {
-      ensureLayout();
-      return cachedLayout.layoutStackMixin(name);
-    },
-    enumerable: true,
-    configurable: true,
-  });
-
-  Object.defineProperty(clone, "layoutGridMixin", {
-    value: (name: string) => {
-      ensureLayout();
-      return cachedLayout.layoutGridMixin(name);
-    },
-    enumerable: true,
-    configurable: true,
-  });
-
   const collectNodes = (): CssNode[] => {
     const nodes: CssNode[] = [];
     nodes.push(...getPaletteVariables());
@@ -1073,6 +978,11 @@ export function createTheme<
     syncTypography();
     nodes.push(...cachedTypographyVariables);
     nodes.push(...cachedTypographyRecipes.nodes);
+    syncLayout();
+    nodes.push(...cachedLayoutVariables);
+    nodes.push(...cachedLayoutSpecialNodes.variables);
+    nodes.push(...cachedLayoutSpecialNodes.rules);
+    nodes.push(...cachedLayoutRecipes.nodes);
     return nodes;
   };
 
@@ -1086,13 +996,7 @@ export function createTheme<
 
   Object.defineProperty(clone, "css", {
     get() {
-      const allNodes = collectNodes();
-      ensureLayout();
-      const layoutCss = cachedLayout.layoutCSS;
-      const rendered = renderToCssString(allNodes);
-      if (!rendered) return layoutCss || "";
-      if (!layoutCss) return rendered;
-      return `${rendered}\n\n${layoutCss}`;
+      return renderToCssString(collectNodes());
     },
     enumerable: true,
     configurable: true,

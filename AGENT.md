@@ -19,6 +19,7 @@ Design-token engine and recipe system for building framework-agnostic UI kits. T
 - [`examples/components-app`](examples/components-app/) — vanilla TS components (composition) example.
 - [`examples/react-app`](examples/react-app/) — React example (bare, no styled-components).
 - [`examples/react-sc-app`](examples/react-sc-app/) — React + styled-components example.
+- [`examples/angular-app`](examples/angular-app/) — Angular 19 example (InjectionToken, class bindings, CSS vars).
 
 ## Source structure
 

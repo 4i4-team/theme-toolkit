@@ -23,34 +23,34 @@
   ],
   "exports": {
     ".": {
-      "require": "./dist/index.cjs.js",
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.esm.js",
-      "types": "./dist/index.d.ts"
+      "require": "./dist/index.cjs.js"
     },
     "./media": {
-      "require": "./dist/media.cjs.js",
+      "types": "./dist/adapters/styled-components/media.d.ts",
       "import": "./dist/media.esm.js",
-      "types": "./dist/adapters/styled-components/media.d.ts"
+      "require": "./dist/media.cjs.js"
     },
     "./layout": {
-      "require": "./dist/layout.cjs.js",
+      "types": "./dist/subsystems/layout/index.d.ts",
       "import": "./dist/layout.esm.js",
-      "types": "./dist/subsystems/layout/index.d.ts"
+      "require": "./dist/layout.cjs.js"
     },
     "./colors": {
-      "require": "./dist/colors.cjs.js",
+      "types": "./dist/subsystems/colors/index.d.ts",
       "import": "./dist/colors.esm.js",
-      "types": "./dist/subsystems/colors/index.d.ts"
+      "require": "./dist/colors.cjs.js"
     },
     "./typography": {
-      "require": "./dist/typography.cjs.js",
+      "types": "./dist/subsystems/typography/index.d.ts",
       "import": "./dist/typography.esm.js",
-      "types": "./dist/subsystems/typography/index.d.ts"
+      "require": "./dist/typography.cjs.js"
     },
     "./theme": {
-      "require": "./dist/theme.cjs.js",
+      "types": "./dist/core/theme/index.d.ts",
       "import": "./dist/theme.esm.js",
-      "types": "./dist/core/theme/index.d.ts"
+      "require": "./dist/theme.cjs.js"
     }
   },
   "scripts": {

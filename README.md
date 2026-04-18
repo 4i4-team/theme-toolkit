@@ -99,6 +99,7 @@ theme.components.classes           // { buttons: { primary: { classes: [...], cl
 | [components-app](examples/components-app/) | vanilla TS | Cross-subsystem composition |
 | [react-app](examples/react-app/) | React | Bare React, className-based, no SC |
 | [react-sc-app](examples/react-sc-app/) | React + SC | Media templates, typographyMixin, direct tokens, CSS vars |
+| [angular-app](examples/angular-app/) | Angular 19 | InjectionToken, class bindings, CSS variables, direct tokens |
 
 ## Framework integration
 
@@ -106,7 +107,7 @@ The core is framework-agnostic. Adapters provide ergonomic wrappers:
 
 - **React + styled-components:** SC-wrapped media templates (`theme.media.md.min\`...\``), `typographyMixin`, `DefaultTheme` augmentation. See [SC adapter docs](docs/adapters/styled-components/README.md).
 - **React (no SC):** `<style>{theme.css}</style>` + className strings. See [react-app example](examples/react-app/).
-- **Angular:** Inject stylesheet at bootstrap, reference class names in templates.
+- **Angular:** Inject stylesheet at bootstrap, reference class names in templates. See [angular-app example](examples/angular-app/).
 - **Any framework:** The output is CSS strings + class name strings. Use however your framework consumes CSS.
 
 ## License

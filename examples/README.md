@@ -1,6 +1,6 @@
 # Examples
 
-Runnable Vite apps demonstrating each subsystem and integration pattern.
+Runnable apps demonstrating each subsystem and integration pattern.
 
 | Example | Stack | Description |
 |---|---|---|
@@ -11,13 +11,15 @@ Runnable Vite apps demonstrating each subsystem and integration pattern.
 | [`components-app`](components-app/) | vanilla TS | Cross-subsystem recipe composition |
 | [`react-app`](react-app/) | React | Bare React, className-based, no styled-components |
 | [`react-sc-app`](react-sc-app/) | React + SC | Media templates, typographyMixin, direct tokens, CSS vars |
+| [`angular-app`](angular-app/) | Angular 19 | InjectionToken, class bindings, CSS variables, direct tokens |
 
 ## Run any example
 
 ```bash
 cd examples/<name>
 npm install
-npm run dev
+npm run dev    # Vite apps
+ng serve       # Angular app
 ```
 
 Each app depends on the local workspace version of the toolkit via a `file:../..` reference.

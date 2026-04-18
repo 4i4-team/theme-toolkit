@@ -60,11 +60,23 @@ type ColorsSubsystemSource<TPaletteKey extends string, TBreakpoint extends strin
     recipes?: PaletteRecipeSource<TBreakpoint>;
   };
 
+import type { PropertyValue } from "../common";
+
+type LayoutSubsystemSource<TBreakpoint extends string> = {
+  spacing?: PropertyValue<number>;
+  gutters?: PropertyValue<number>;
+  columns?: import("../../subsystems/layout").ColumnsInput;
+  containers?: import("../../subsystems/layout").ContainersInput<TBreakpoint>;
+  stacks?: import("../../subsystems/layout").StacksInput;
+  grids?: import("../../subsystems/layout").GridsInput;
+  recipes?: import("../../subsystems/layout").LayoutStylesInput;
+};
+
 type ThemeWithBreakpoints<T extends string, TPaletteKey extends string> = {
   breakpoints: Breakpoints<T>;
   typography?: TypographySource;
   colors?: ColorsSubsystemSource<TPaletteKey, T>;
-  layout?: LayoutConfig<T>;
+  layout?: LayoutSubsystemSource<T>;
 };
 
 type PaletteComputedProperties<TPaletteKey extends string, TBreakpoint extends string> = {
@@ -173,16 +185,68 @@ const createMissingLayoutHelpers = <T extends string>(): ThemeWithLayout<T> => {
   };
 };
 
+const convertPropertyValueToTokenMap = (
+  input: PropertyValue<number> | undefined,
+): Record<string, number | { value: number; responsive?: Array<{ breakpoint: string; value: number }> }> | number => {
+  if (input === undefined) return { default: 0 };
+  if (typeof input === "number") return input;
+  const extended = input as { base: number; variants?: Record<string, number | { base: number }>; responsive?: Array<Record<string, unknown>> };
+  const result: Record<string, unknown> = { default: extended.base };
+  if (extended.variants) {
+    for (const [name, val] of Object.entries(extended.variants)) {
+      result[name] = typeof val === "number" ? val : (val as { base: number }).base;
+    }
+  }
+  if (extended.responsive) {
+    for (const entry of extended.responsive) {
+      const target = entry.target as string | undefined;
+      const base = entry.base as number | undefined;
+      const breakpoint = entry.breakpoint as string;
+      const query = entry.query as string | undefined;
+      if (target && base !== undefined) {
+        const existing = result[target];
+        if (typeof existing === "number") {
+          result[target] = {
+            value: existing,
+            responsive: [{ breakpoint, query, value: base }],
+          };
+        } else if (existing && typeof existing === "object") {
+          const obj = existing as { value: number; responsive?: Array<Record<string, unknown>> };
+          obj.responsive = obj.responsive ?? [];
+          obj.responsive.push({ breakpoint, query, value: base });
+        }
+      }
+    }
+  }
+  return result as any;
+};
+
+const convertLayoutSource = <T extends string>(
+  source: LayoutSubsystemSource<T> | undefined,
+): LayoutConfig<T> | undefined => {
+  if (!source) return undefined;
+  return {
+    spacing: convertPropertyValueToTokenMap(source.spacing) as any,
+    gutters: source.gutters ? convertPropertyValueToTokenMap(source.gutters) as any : undefined,
+    columns: source.columns,
+    containers: source.containers,
+    styles: source.recipes,
+    stacks: source.stacks,
+    grids: source.grids,
+  };
+};
+
 const buildLayoutHelpers = <T extends string>(
-  layout: LayoutConfig<T> | undefined,
+  layout: LayoutSubsystemSource<T> | undefined,
   breakpoints: Breakpoints<T>,
   options?: LayoutBuilderOptions,
 ): ThemeWithLayout<T> => {
-  if (!layout) {
+  const converted = convertLayoutSource(layout);
+  if (!converted) {
     return createMissingLayoutHelpers();
   }
 
-  const { tokens, helpers, toCSS } = buildGridTokens({ layout }, breakpoints, options);
+  const { tokens, helpers, toCSS } = buildGridTokens({ layout: converted }, breakpoints, options);
 
   return {
     layoutTokens: tokens,

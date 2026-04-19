@@ -1,12 +1,9 @@
-import { createTheme, createCssAdapter } from "@4i4/theme-toolkit";
-
 export const rawTheme = {
   breakpoints: { sm: 576, md: 768, lg: 1024 },
   colors: {
     primary: { base: "#4dabf7", text: "#fff", variants: { dark: "#1c7ed6" } },
     danger: { base: "#ff6b6b", text: "#fff" },
     success: { base: "#51cf66", text: "#fff" },
-    neutral: { base: "#868e96", text: "#fff", variants: { light: "#f1f3f5", dark: "#343a40" } },
     recipes: {
       solid: {
         primary: { background: "primary", color: "primary.text" },
@@ -21,12 +18,8 @@ export const rawTheme = {
     fontWeight: { base: 400, variants: { medium: 500, bold: 700 } },
     lineHeight: { base: 1.5, variants: { tight: 1.2 } },
     recipes: {
-      heading: {
-        h2: { fontFamily: "heading", fontSize: "xl", fontWeight: "bold", lineHeight: "tight" },
-      },
-      button: {
-        large: { fontSize: "lg", fontWeight: "medium" },
-      },
+      heading: { h2: { fontFamily: "heading", fontSize: "xl", fontWeight: "bold", lineHeight: "tight" } },
+      button: { large: { fontSize: "lg", fontWeight: "medium" } },
     },
   },
   effects: {
@@ -68,42 +61,17 @@ export const rawTheme = {
         },
       },
       cards: {
-        default: {
-          effects: "card.default",
-          layout: "padding.card",
-          css: { background: "#fff", overflow: "hidden" },
-        },
-        elevated: {
-          effects: "card.elevated",
-          layout: "padding.card",
-          css: { background: "#fff", overflow: "hidden" },
-        },
+        default: { effects: "card.default", layout: "padding.card", css: { background: "#fff", overflow: "hidden" } },
+        elevated: { effects: "card.elevated", layout: "padding.card", css: { background: "#fff", overflow: "hidden" } },
       },
     },
   },
 };
 
-const options = {
+export const options = {
   colors: { prefix: "app", classPrefix: "app-color" },
   typography: { prefix: "app", classPrefix: "app-type" },
   effects: { prefix: "app", classPrefix: "app-fx" },
   layout: { prefix: "app", classPrefix: "app-layout" },
   components: { prefix: "app", classPrefix: "app" },
 };
-
-// --- Different adapters for different delivery styles ---
-
-// 1. Default — var(--) references + global :root
-export const defaultTheme = createTheme(rawTheme, options);
-
-// 2. Inline — resolved values, no CSS variables
-export const inlineTheme = createTheme(rawTheme, {
-  ...options,
-  adapter: createCssAdapter({ inline: true }),
-});
-
-// 3. Scoped — MFE-namespaced variables
-export const scopedTheme = createTheme(rawTheme, {
-  ...options,
-  adapter: createCssAdapter({ scope: "widget" }),
-});

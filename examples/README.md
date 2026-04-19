@@ -12,7 +12,11 @@ Runnable apps demonstrating each subsystem and integration pattern.
 | [`react-app`](react-app/) | React | Bare React, className-based, no styled-components |
 | [`react-sc-app`](react-sc-app/) | React + SC | Media templates, typographyMixin, direct tokens, CSS vars |
 | [`angular-app`](angular-app/) | Angular 19 | InjectionToken, class bindings, CSS variables, direct tokens |
-| [`delivery-app`](delivery-app/) | vanilla TS | All delivery styles: single, split, per-recipe, inline, scoped, per-component |
+| [`delivery-global-app`](delivery-global-app/) | vanilla TS | Single global CSS — simplest setup |
+| [`delivery-split-app`](delivery-split-app/) | vanilla TS | Variables global, recipes lazy-loaded per route |
+| [`delivery-component-app`](delivery-component-app/) | vanilla TS | Per-component CSS mount/unmount (PrimeNG style) |
+| [`delivery-scoped-app`](delivery-scoped-app/) | vanilla TS | Two MFEs with scoped variables on one page |
+| [`delivery-inline-app`](delivery-inline-app/) | vanilla TS | Inline values, no CSS variables (email/static) |
 
 ## Run any example
 

@@ -21,7 +21,11 @@ Design-token engine and recipe system for building framework-agnostic UI kits. T
 - [`examples/react-app`](examples/react-app/) — React example (bare, no styled-components).
 - [`examples/react-sc-app`](examples/react-sc-app/) — React + styled-components example.
 - [`examples/angular-app`](examples/angular-app/) — Angular 19 example (InjectionToken, class bindings, CSS vars).
-- [`examples/delivery-app`](examples/delivery-app/) — delivery styles: single, split, per-recipe, inline, scoped, per-component.
+- [`examples/delivery-global-app`](examples/delivery-global-app/) — delivery: single global CSS.
+- [`examples/delivery-split-app`](examples/delivery-split-app/) — delivery: variables global, recipes per route.
+- [`examples/delivery-component-app`](examples/delivery-component-app/) — delivery: per-component mount/unmount.
+- [`examples/delivery-scoped-app`](examples/delivery-scoped-app/) — delivery: scoped MFE variables.
+- [`examples/delivery-inline-app`](examples/delivery-inline-app/) — delivery: inline values, no variables.
 
 ## Source structure
 

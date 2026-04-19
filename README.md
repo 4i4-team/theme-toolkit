@@ -115,7 +115,11 @@ theme.components.renderRecipe("buttons", "primary")              // cross-subsys
 | [react-app](examples/react-app/) | React | Bare React, className-based, no SC |
 | [react-sc-app](examples/react-sc-app/) | React + SC | Media templates, typographyMixin, direct tokens, CSS vars |
 | [angular-app](examples/angular-app/) | Angular 19 | InjectionToken, class bindings, CSS variables, direct tokens |
-| [delivery-app](examples/delivery-app/) | vanilla TS | All delivery styles: single, split, per-recipe, inline, scoped, per-component |
+| [delivery-global-app](examples/delivery-global-app/) | vanilla TS | Single global CSS — simplest setup |
+| [delivery-split-app](examples/delivery-split-app/) | vanilla TS | Variables global, recipes lazy-loaded per route |
+| [delivery-component-app](examples/delivery-component-app/) | vanilla TS | Per-component CSS on mount/unmount (PrimeNG style) |
+| [delivery-scoped-app](examples/delivery-scoped-app/) | vanilla TS | Two MFEs with scoped variables on one page |
+| [delivery-inline-app](examples/delivery-inline-app/) | vanilla TS | Inline values, no CSS variables (email/static) |
 
 ## Adapters
 

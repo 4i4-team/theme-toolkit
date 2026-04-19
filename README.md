@@ -115,6 +115,7 @@ theme.components.renderRecipe("buttons", "primary")              // cross-subsys
 | [react-app](examples/react-app/) | React | Bare React, className-based, no SC |
 | [react-sc-app](examples/react-sc-app/) | React + SC | Media templates, typographyMixin, direct tokens, CSS vars |
 | [angular-app](examples/angular-app/) | Angular 19 | InjectionToken, class bindings, CSS variables, direct tokens |
+| [delivery-app](examples/delivery-app/) | vanilla TS | All delivery styles: single, split, per-recipe, inline, scoped, per-component |
 
 ## Adapters
 

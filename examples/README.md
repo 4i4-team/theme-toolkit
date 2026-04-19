@@ -12,6 +12,7 @@ Runnable apps demonstrating each subsystem and integration pattern.
 | [`react-app`](react-app/) | React | Bare React, className-based, no styled-components |
 | [`react-sc-app`](react-sc-app/) | React + SC | Media templates, typographyMixin, direct tokens, CSS vars |
 | [`angular-app`](angular-app/) | Angular 19 | InjectionToken, class bindings, CSS variables, direct tokens |
+| [`delivery-app`](delivery-app/) | vanilla TS | All delivery styles: single, split, per-recipe, inline, scoped, per-component |
 
 ## Run any example
 

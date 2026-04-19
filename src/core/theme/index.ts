@@ -257,6 +257,15 @@ export function createTheme<
   ThemeWithComponents<ExtractRecipes<TTheme, "components">> &
   ThemeWithAggregateCss {
   const adapter = options?.adapter ?? createCssAdapter();
+  const adapterRenderRecipe = (
+    rules: CssRuleNode[],
+    variables: CssVariablesNode[],
+    renderOptions?: RenderRecipeOptions,
+  ): string =>
+    adapter.renderRecipe
+      ? adapter.renderRecipe(rules, variables, renderOptions)
+      : renderRecipeNodes(rules, variables, renderOptions);
+
   const paletteHelper = createPaletteThemeHelper();
   const clone = { ...theme } as TTheme &
     ThemeWithMedia<T> &
@@ -858,7 +867,7 @@ export function createTheme<
         const rules = cachedLayoutRecipes.nodes.filter(n => n.selector === selector);
         const allVars = [...cachedLayoutVariables, ...cachedLayoutSpecialNodes.variables];
         enrichDeclarationsWithRefs([...allVars, ...rules]);
-        return renderRecipeNodes(rules, allVars as CssVariablesNode[], renderOptions);
+        return adapterRenderRecipe(rules, allVars as CssVariablesNode[], renderOptions);
       },
       enumerable: true, configurable: true,
     });
@@ -985,7 +994,7 @@ export function createTheme<
         const selector = `.${className}`;
         const rules = cachedPaletteRecipes.nodes.filter(n => n.selector === selector);
         enrichDeclarationsWithRefs([...getPaletteVariables(), ...rules]);
-        return renderRecipeNodes(rules, getPaletteVariables() as CssVariablesNode[], renderOptions);
+        return adapterRenderRecipe(rules, getPaletteVariables() as CssVariablesNode[], renderOptions);
       },
       enumerable: true, configurable: true,
     });
@@ -1064,7 +1073,7 @@ export function createTheme<
         const selector = `.${className}`;
         const rules = cachedTypographyRecipes.nodes.filter(n => n.selector === selector);
         enrichDeclarationsWithRefs([...cachedTypographyVariables, ...rules]);
-        return renderRecipeNodes(rules, cachedTypographyVariables as CssVariablesNode[], renderOptions);
+        return adapterRenderRecipe(rules, cachedTypographyVariables as CssVariablesNode[], renderOptions);
       },
       enumerable: true, configurable: true,
     });
@@ -1237,7 +1246,7 @@ export function createTheme<
         const selector = `.${className}`;
         const rules = cachedEffectsRecipes.nodes.filter(n => n.selector === selector);
         enrichDeclarationsWithRefs([...cachedEffectsVariables, ...rules]);
-        return renderRecipeNodes(rules, cachedEffectsVariables as CssVariablesNode[], renderOptions);
+        return adapterRenderRecipe(rules, cachedEffectsVariables as CssVariablesNode[], renderOptions);
       },
       enumerable: true, configurable: true,
     });
@@ -1361,7 +1370,7 @@ export function createTheme<
           (n): n is CssRuleNode => n.kind === "rule" && classNames.some(cls => n.selector === `.${cls}`),
         );
         enrichDeclarationsWithRefs([...allVars, ...rules]);
-        return renderRecipeNodes(rules, allVars, renderOptions);
+        return adapterRenderRecipe(rules, allVars, renderOptions);
       },
       enumerable: true, configurable: true,
     });

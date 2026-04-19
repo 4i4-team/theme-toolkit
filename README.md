@@ -121,21 +121,35 @@ theme.components.renderRecipe("buttons", "primary")              // cross-subsys
 By default, `createTheme` produces plain CSS with no framework dependency. Pass an adapter to customize the output:
 
 ```ts
-import { createTheme, createStyledComponentsAdapter } from "@theme-registry/theme-kit";
+import { createTheme, createCssAdapter, createStyledComponentsAdapter } from "@theme-registry/theme-kit";
 
 // Default — plain CSS strings, plain media query strings
-const theme = createTheme(rawTheme, options);
-theme.media.md.min  // "@media (min-width: 768px)" — plain string
+const appTheme = createTheme(rawTheme, options);
+appTheme.media.md.min  // "@media (min-width: 768px)" — plain string
 
-// styled-components — media becomes tagged template functions
+// Embedded widget — scoped variables, no conflicts with host app
+const widgetTheme = createTheme(rawTheme, {
+  adapter: createCssAdapter({ scope: "widget" }),
+});
+// → --widget-colors-primary instead of --app-colors-primary
+
+// Email template — inlined values, no CSS variables
+const emailTheme = createTheme(rawTheme, {
+  adapter: createCssAdapter({ inline: true }),
+});
+// → background: #4dabf7 instead of background: var(--app-colors-primary)
+
+// styled-components — media as tagged template functions
 const scTheme = createTheme(rawTheme, {
-  ...options,
   adapter: createStyledComponentsAdapter(),
 });
 scTheme.media.md.min`padding: 24px;`  // SC tagged template
+
+// React Native — inline values as style objects (theoretical, not shipped with this package)
+// const rnTheme = createTheme(rawTheme, { adapter: createReactNativeAdapter() });
 ```
 
-Custom adapters can target SASS (`$variables`), LESS (`@variables`), React Native, or any other platform by implementing the `ThemeAdapter` interface. See [SC adapter docs](docs/adapters/styled-components/README.md).
+Custom adapters can target SASS (`$variables`), LESS (`@variables`), React Native, or any other platform by implementing the `ThemeAdapter` interface. See [core adapter docs](docs/core/README.md#adapter).
 
 ## Framework integration
 

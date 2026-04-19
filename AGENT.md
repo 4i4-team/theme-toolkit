@@ -171,9 +171,17 @@ By default, `createTheme` returns this plain `MediaDescriptor` on `theme.media`.
 | `renderCss(nodes)` | `renderToCssString` | Converts IR to output string |
 | `resolveVariableReference(varName)` | `` `var(${varName})` `` | Wraps variable names for declarations |
 | `wrapMedia(descriptor)` | passthrough | Transforms MediaDescriptor |
+| `renderRecipe?(rules, vars, opts)` | `renderRecipeNodes` | Per-recipe rendering with delivery options |
 | `extend?(theme)` | none | Attaches extra utilities to theme root |
 
-The default CSS adapter is used when no adapter is passed. The SC adapter wraps media with tagged templates. Custom adapters can target SASS, LESS, React Native, etc.
+The default CSS adapter accepts options: `createCssAdapter({ inline: true })` for inlined values, `createCssAdapter({ scope: "mfe" })` for MFE-namespaced variables. Same raw theme, different output:
+
+```ts
+createTheme(rawTheme)                                              // var(--) + global :root
+createTheme(rawTheme, { adapter: createCssAdapter({ inline: true }) })    // values inlined
+createTheme(rawTheme, { adapter: createCssAdapter({ scope: "widget" }) }) // --widget-* vars
+createTheme(rawTheme, { adapter: createStyledComponentsAdapter() })       // SC tagged templates
+```
 
 ### Responsive model
 

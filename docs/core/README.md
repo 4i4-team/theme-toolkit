@@ -342,6 +342,7 @@ interface ThemeAdapter<TMediaOutput = unknown> {
   renderCss(nodes: CssNode[]): string;
   resolveVariableReference(variableName: string): string;
   wrapMedia<TBreakpoint>(descriptor: MediaDescriptor<TBreakpoint>): TMediaOutput;
+  renderRecipe?(rules: CssRuleNode[], variables: CssVariablesNode[], options?: RenderRecipeOptions): string;
   extend?(theme: Record<string, unknown>): Record<string, unknown>;
 }
 ```
@@ -351,13 +352,54 @@ interface ThemeAdapter<TMediaOutput = unknown> {
 | `renderCss` | `renderToCssString(nodes)` | Converts IR to output format |
 | `resolveVariableReference` | `` (v) => `var(${v})` `` | Wraps variable names for declarations |
 | `wrapMedia` | passthrough (plain strings) | Transforms MediaDescriptor for the target |
+| `renderRecipe` | `renderRecipeNodes(rules, vars, opts)` | Per-recipe rendering with delivery options |
 | `extend` | none | Attaches extra utilities to theme root |
 
-The default CSS adapter is applied when no `adapter` is passed:
+### Adapter options
+
+The default CSS adapter accepts options that apply to all rendering:
 
 ```ts
-const theme = createTheme(rawTheme);  // uses createCssAdapter() internally
-theme.media.md.min  // "@media (min-width: 768px)" — plain string
+createCssAdapter()                         // default — var(--) references, global variables
+createCssAdapter({ inline: true })         // inline — resolved values, no variables
+createCssAdapter({ scope: "checkout" })    // scoped — --checkout-* namespaced variables
+```
+
+| Option | Effect on `theme.css` | Effect on `renderRecipe` |
+|---|---|---|
+| *(none)* | Standard CSS with `var(--)` + `:root` | Same, filtered to recipe's dependencies |
+| `inline` | No variables, values baked into rules | Same |
+| `scope` | Variables renamed `--scope-*`, rules reference scoped vars | Same, per-call can override |
+
+Per-call `renderRecipe` options can override adapter defaults.
+
+### Usage examples
+
+```ts
+import { createTheme, createCssAdapter, createStyledComponentsAdapter } from "@theme-registry/theme-kit";
+
+// Default — plain CSS with var(--) references
+const appTheme = createTheme(rawTheme);
+
+// Embedded widget — scoped variables, no conflicts with host app
+const widgetTheme = createTheme(rawTheme, {
+  adapter: createCssAdapter({ scope: "widget" }),
+});
+
+// Email template — inlined values, no CSS variables at all
+const emailTheme = createTheme(rawTheme, {
+  adapter: createCssAdapter({ inline: true }),
+});
+
+// styled-components — media as tagged template functions
+const scTheme = createTheme(rawTheme, {
+  adapter: createStyledComponentsAdapter(),
+});
+
+// React Native — inline values as style objects (theoretical, not shipped)
+// const rnTheme = createTheme(rawTheme, {
+//   adapter: createReactNativeAdapter(),
+// });
 ```
 
 Custom adapters can target other platforms:

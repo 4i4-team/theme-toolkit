@@ -1,4 +1,5 @@
-import type { CssNode } from "../common";
+import type { CssNode, CssRuleNode, CssVariablesNode } from "../common";
+import type { RenderRecipeOptions } from "../common/cssRender";
 import type { MediaDescriptor } from "../media";
 
 /**
@@ -31,6 +32,13 @@ export interface ThemeAdapter<TMediaOutput = unknown> {
   wrapMedia<TBreakpoint extends string>(
     descriptor: MediaDescriptor<TBreakpoint>,
   ): TMediaOutput;
+
+  /** Render CSS for a single recipe variant with delivery options. */
+  renderRecipe?(
+    rules: CssRuleNode[],
+    variables: CssVariablesNode[],
+    options?: RenderRecipeOptions,
+  ): string;
 
   /** Attach extra utilities to the theme root. */
   extend?(theme: Record<string, unknown>): Record<string, unknown>;

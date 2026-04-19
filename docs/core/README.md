@@ -230,7 +230,12 @@ assignRecipeClasses(
 **File:** `src/core/common/cssNodes.ts`
 
 ```ts
-type CssDeclaration = { property: string; value: string | number };
+type CssDeclaration = {
+  property: string;
+  value: string | number;
+  ref?: string;             // CSS variable name (e.g. "--dt-color--primary")
+  resolved?: string | number; // actual value (e.g. "#4dabf7")
+};
 
 type CssVariablesNode = {
   kind: "variables";
@@ -248,6 +253,8 @@ type CssRuleNode = {
 
 type CssNode = CssVariablesNode | CssRuleNode;
 ```
+
+`ref` and `resolved` enable flexible delivery — the same IR can render as `var(--)` references (default), inlined values (`inline: true`), or scoped variables (`scope: "mfe-name"`).
 
 Subsystems produce `CssNode[]`; the renderer converts to strings. Adapters can implement alternative converters (e.g., `renderToStyledComponentsRuleSet`, `renderToCssObject`).
 
@@ -269,6 +276,58 @@ renderToCssString(
 ```
 
 Nodes with `media` are wrapped: `@media (...) { selector { ... } }`. Nodes without `media` emit: `selector { ... }`.
+
+---
+
+## Delivery
+
+**Files:** `src/core/common/cssRender.ts`, `src/core/common/cssEnrich.ts`
+
+The same IR supports multiple delivery strategies via `renderRecipe` (per-subsystem) and split getters (theme-level).
+
+### Theme-level split
+
+```ts
+theme.css              // all variables + all recipe rules (single output)
+theme.variablesCss     // only :root variable blocks
+theme.recipesCss       // only recipe rule blocks
+```
+
+### Per-recipe rendering
+
+Each subsystem slice exposes `renderRecipe(group, variant, options?)`:
+
+```ts
+// Default — var references + only the variables this recipe uses
+theme.colors.renderRecipe("solid", "primary")
+// → :root { --dt-color--primary: #4dabf7; ... }
+// → .dt-color-solid-primary { background: var(--dt-color--primary); ... }
+
+// Inline — resolved values, no variables
+theme.colors.renderRecipe("solid", "primary", { inline: true })
+// → .dt-color-solid-primary { background: #4dabf7; color: #fff; }
+
+// Scoped — MFE-safe namespaced variables
+theme.colors.renderRecipe("solid", "primary", { scope: "checkout" })
+// → :root { --checkout-color--primary: #4dabf7; ... }
+// → .dt-color-solid-primary { background: var(--checkout-color--primary); ... }
+
+// Rules only — variables delivered separately
+theme.colors.renderRecipe("solid", "primary", { includeVariables: false })
+// → .dt-color-solid-primary { background: var(--dt-color--primary); ... }
+```
+
+### Components cross-subsystem
+
+`theme.components.renderRecipe("buttons", "primary")` collects rules from all referenced subsystems (colors, typography, effects, layout) plus the delta class, and renders them with the chosen options.
+
+### Options
+
+| Option | Type | Default | Effect |
+|---|---|---|---|
+| `inline` | `boolean` | `false` | Use resolved values instead of `var(--)` references |
+| `scope` | `string` | — | Prefix variable names for MFE isolation |
+| `includeVariables` | `boolean` | `true` | Include the `:root` variable block |
 
 ---
 
@@ -444,6 +503,7 @@ theme[key] = {
   get classes() {},          // recipe class name map
   get styles() {},           // recipe interpreted styles
   get getClass() {},         // fn(group, variant) → className | undefined
+  get renderRecipe() {},     // fn(group, variant, options?) → CSS string
   get <extras>() {},         // subsystem-specific (lighten, darken, mixin, ...)
 };
 ```
@@ -451,6 +511,8 @@ theme[key] = {
 Top level:
 ```ts
 theme.css                    // rendered CSS string (all subsystems, single :root)
+theme.variablesCss           // only :root variable blocks
+theme.recipesCss             // only recipe rule blocks
 theme.nodes                  // CssNode[] (all subsystems)
 theme.media                  // media descriptor
 theme.breakpoints            // raw breakpoint map

@@ -75,6 +75,11 @@ Core stages produce `CssNode[]` — typed JS objects, not strings. Two node kind
 - `CssVariablesNode` — `{ kind: "variables", selector, media?, variables }`.
 - `CssRuleNode` — `{ kind: "rule", selector, media?, declarations }`.
 
+Declarations carry optional `ref` and `resolved` fields for delivery flexibility:
+- `ref` — the CSS variable name (e.g. `--dt-color--primary`)
+- `resolved` — the actual value (e.g. `#4dabf7`)
+- `value` — the rendered string (e.g. `var(--dt-color--primary)`) — always present, backward compatible
+
 `renderToCssString(nodes)` converts IR to a CSS string, merging adjacent variable nodes with the same selector+media into one block (single `:root`).
 
 ### Output shape
@@ -91,6 +96,7 @@ theme[key] = {
   get classes()            recipe class map
   get styles()             recipe interpreted styles
   get getClass()           fn(group, variant) → className
+  get renderRecipe()       fn(group, variant, options?) → CSS string for one recipe
   get <extras>()           subsystem-specific (e.g., lighten, darken for colors)
 }
 ```
@@ -98,9 +104,25 @@ theme[key] = {
 Top level:
 ```
 theme.css                  rendered CSS string (all subsystems, single :root)
+theme.variablesCss         only :root variable blocks
+theme.recipesCss           only recipe rule blocks
 theme.nodes                CssNode[] (all subsystems)
 theme.media                media descriptor (breakpoint helpers)
 ```
+
+### Delivery options
+
+`renderRecipe(group, variant, options?)` on each subsystem slice renders CSS for a single recipe variant with delivery options:
+
+| Option | Effect |
+|---|---|
+| *(default)* | `var(--)` references + only the variables this recipe needs |
+| `inline: true` | Resolved values inlined directly, no variables block |
+| `scope: "name"` | Variables renamed with prefix (`--name-*`), rules reference scoped vars |
+| `includeVariables: false` | Rules only, no variable block (when variables delivered separately) |
+
+Components `renderRecipe` pulls rules from all referenced subsystems + delta class.
+
 
 ### SubsystemHelper contract
 

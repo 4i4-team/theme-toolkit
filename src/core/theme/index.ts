@@ -1,7 +1,7 @@
 import type { MediaConfig } from "../media";
 import type { ThemeAdapter } from "./adapter";
 import { createCssAdapter } from "./cssAdapter";
-import type { Breakpoints, CssNode, CssRuleNode, CssVariablesNode, NormalizedPropertyValue, NormalizedRecipeGroup } from "../common";
+import type { Breakpoints, CssNode, CssRuleNode, CssVariablesNode, NormalizedPropertyValue, NormalizedRecipeGroup, RenderRecipeOptions } from "../common";
 import {
   normalizePropertyValue,
   validateNormalizedResponsiveRefs,
@@ -14,6 +14,11 @@ import {
   assignRecipeClasses,
   createRecipeVariantResolver,
   sanitizeIdentifierSegment,
+  enrichDeclarationsWithRefs,
+  renderRecipeNodes,
+  renderVariablesCss,
+  renderRulesCss,
+  splitNodes,
 } from "../common";
 import {
   buildMediaDescriptor,
@@ -115,6 +120,12 @@ type GetClassFn<TRecipes> = <G extends keyof TRecipes & string>(
 
 // --- Subsystem slice types ---
 
+type RenderRecipeFn<TRecipes> = <G extends keyof TRecipes & string>(
+  group: G,
+  variant: keyof TRecipes[G] & string,
+  options?: RenderRecipeOptions,
+) => string;
+
 type PaletteComputedProperties<TPaletteKey extends string, TBreakpoint extends string, TRecipes = Record<string, Record<string, unknown>>> = {
   readonly tokens: Record<TPaletteKey, PaletteTokens>;
   readonly variables: CssVariablesNode[];
@@ -122,6 +133,7 @@ type PaletteComputedProperties<TPaletteKey extends string, TBreakpoint extends s
   readonly classes: RecipeClassMap<TRecipes>;
   readonly styles: Record<string, PaletteRecipeStyleMap<TBreakpoint>>;
   getClass: GetClassFn<TRecipes>;
+  renderRecipe: RenderRecipeFn<TRecipes>;
   lighten: (name: TPaletteKey, percent: number) => string;
   darken: (name: TPaletteKey, percent: number) => string;
   readonly recipes: PaletteRecipeSource<TBreakpoint>;
@@ -136,6 +148,8 @@ type ThemeWithPalette<TPaletteKey extends string, TBreakpoint extends string, TR
 
 type ThemeWithAggregateCss = {
   readonly css: string;
+  readonly variablesCss: string;
+  readonly recipesCss: string;
   readonly nodes: CssNode[];
 };
 
@@ -145,6 +159,7 @@ type TypographyComputedProperties<TRecipes = Record<string, Record<string, unkno
   readonly nodes: CssNode[];
   readonly classes: RecipeClassMap<TRecipes>;
   getClass: GetClassFn<TRecipes>;
+  renderRecipe: RenderRecipeFn<TRecipes>;
   style: <G extends keyof TRecipes & string>(group: G, variant: keyof TRecipes[G] & string) => Record<string, string>;
 };
 
@@ -160,6 +175,7 @@ type LayoutComputedProperties<TRecipes = Record<string, Record<string, unknown>>
   readonly nodes: CssNode[];
   readonly classes: RecipeClassMap<TRecipes>;
   getClass: GetClassFn<TRecipes>;
+  renderRecipe: RenderRecipeFn<TRecipes>;
 };
 
 type LayoutThemeSlice<TRecipes = Record<string, Record<string, unknown>>> = LayoutSource & LayoutComputedProperties<TRecipes>;
@@ -174,6 +190,7 @@ type EffectsComputedProperties<TRecipes = Record<string, Record<string, unknown>
   readonly nodes: CssNode[];
   readonly classes: RecipeClassMap<TRecipes>;
   getClass: GetClassFn<TRecipes>;
+  renderRecipe: RenderRecipeFn<TRecipes>;
 };
 
 type EffectsThemeSlice<TRecipes = Record<string, Record<string, unknown>>> = EffectsSource & EffectsComputedProperties<TRecipes>;
@@ -186,6 +203,7 @@ type ComponentsComputedProperties<TRecipes = Record<string, Record<string, unkno
   readonly nodes: CssNode[];
   readonly classes: RecipeComponentClassMap<TRecipes>;
   getClass: <G extends keyof TRecipes & string>(group: G, variant: keyof TRecipes[G] & string) => string | undefined;
+  renderRecipe: RenderRecipeFn<TRecipes>;
 };
 
 type ComponentsThemeSlice<TRecipes = Record<string, Record<string, unknown>>> = ComponentsSource & ComponentsComputedProperties<TRecipes>;
@@ -831,6 +849,19 @@ export function createTheme<
       get: () => (group: string, variant: string) => cachedLayoutRecipes.classes[group]?.[variant],
       enumerable: true, configurable: true,
     });
+    Object.defineProperty(slice, "renderRecipe", {
+      get: () => (group: string, variant: string, renderOptions?: RenderRecipeOptions) => {
+        syncLayout();
+        const className = cachedLayoutRecipes.classes[group]?.[variant];
+        if (!className) return "";
+        const selector = `.${className}`;
+        const rules = cachedLayoutRecipes.nodes.filter(n => n.selector === selector);
+        const allVars = [...cachedLayoutVariables, ...cachedLayoutSpecialNodes.variables];
+        enrichDeclarationsWithRefs([...allVars, ...rules]);
+        return renderRecipeNodes(rules, allVars as CssVariablesNode[], renderOptions);
+      },
+      enumerable: true, configurable: true,
+    });
 
     return slice;
   };
@@ -946,6 +977,18 @@ export function createTheme<
       },
       enumerable: true, configurable: true,
     });
+    Object.defineProperty(slice, "renderRecipe", {
+      get: () => (group: string, variant: string, renderOptions?: RenderRecipeOptions) => {
+        ensurePaletteRecipes();
+        const className = cachedPaletteRecipes.classes[group]?.[variant];
+        if (!className) return "";
+        const selector = `.${className}`;
+        const rules = cachedPaletteRecipes.nodes.filter(n => n.selector === selector);
+        enrichDeclarationsWithRefs([...getPaletteVariables(), ...rules]);
+        return renderRecipeNodes(rules, getPaletteVariables() as CssVariablesNode[], renderOptions);
+      },
+      enumerable: true, configurable: true,
+    });
     Object.defineProperty(slice, "lighten", {
       get() {
         const extras = buildPaletteSliceExtras();
@@ -1011,6 +1054,18 @@ export function createTheme<
     Object.defineProperty(slice, "getClass", {
       get: () => (group: string, variant: string) =>
         cachedTypographyRecipes.classes[group]?.[variant],
+      enumerable: true, configurable: true,
+    });
+    Object.defineProperty(slice, "renderRecipe", {
+      get: () => (group: string, variant: string, renderOptions?: RenderRecipeOptions) => {
+        syncTypography();
+        const className = cachedTypographyRecipes.classes[group]?.[variant];
+        if (!className) return "";
+        const selector = `.${className}`;
+        const rules = cachedTypographyRecipes.nodes.filter(n => n.selector === selector);
+        enrichDeclarationsWithRefs([...cachedTypographyVariables, ...rules]);
+        return renderRecipeNodes(rules, cachedTypographyVariables as CssVariablesNode[], renderOptions);
+      },
       enumerable: true, configurable: true,
     });
     Object.defineProperty(slice, "style", {
@@ -1175,6 +1230,17 @@ export function createTheme<
       get: () => (group: string, variant: string) => cachedEffectsRecipes.classes[group]?.[variant],
       enumerable: true, configurable: true,
     });
+    Object.defineProperty(slice, "renderRecipe", {
+      get: () => (group: string, variant: string, renderOptions?: RenderRecipeOptions) => {
+        const className = cachedEffectsRecipes.classes[group]?.[variant];
+        if (!className) return "";
+        const selector = `.${className}`;
+        const rules = cachedEffectsRecipes.nodes.filter(n => n.selector === selector);
+        enrichDeclarationsWithRefs([...cachedEffectsVariables, ...rules]);
+        return renderRecipeNodes(rules, cachedEffectsVariables as CssVariablesNode[], renderOptions);
+      },
+      enumerable: true, configurable: true,
+    });
 
     return slice;
   };
@@ -1283,6 +1349,22 @@ export function createTheme<
         cachedComponentsOutput.classes[group]?.[variant]?.className,
       enumerable: true, configurable: true,
     });
+    Object.defineProperty(slice, "renderRecipe", {
+      get: () => (group: string, variant: string, renderOptions?: RenderRecipeOptions) => {
+        const allNodes = collectNodes();
+        const allVars = splitNodes(allNodes).variables;
+        // Collect all rule nodes for this component variant + referenced subsystem recipes
+        const compData = cachedComponentsOutput.classes[group]?.[variant];
+        if (!compData) return "";
+        const classNames = compData.classes;
+        const rules = allNodes.filter(
+          (n): n is CssRuleNode => n.kind === "rule" && classNames.some(cls => n.selector === `.${cls}`),
+        );
+        enrichDeclarationsWithRefs([...allVars, ...rules]);
+        return renderRecipeNodes(rules, allVars, renderOptions);
+      },
+      enumerable: true, configurable: true,
+    });
 
     return slice;
   };
@@ -1308,7 +1390,13 @@ export function createTheme<
     nodes.push(...cachedEffectsVariables);
     nodes.push(...cachedEffectsRecipes.nodes);
     nodes.push(...cachedComponentsOutput.nodes);
+    enrichDeclarationsWithRefs(nodes);
     return nodes;
+  };
+
+  const collectVariableNodes = (): CssVariablesNode[] => {
+    const nodes = collectNodes();
+    return splitNodes(nodes).variables;
   };
 
   Object.defineProperty(clone, "nodes", {
@@ -1322,6 +1410,22 @@ export function createTheme<
   Object.defineProperty(clone, "css", {
     get() {
       return adapter.renderCss(collectNodes());
+    },
+    enumerable: true,
+    configurable: true,
+  });
+
+  Object.defineProperty(clone, "variablesCss", {
+    get() {
+      return renderVariablesCss(collectNodes());
+    },
+    enumerable: true,
+    configurable: true,
+  });
+
+  Object.defineProperty(clone, "recipesCss", {
+    get() {
+      return renderRulesCss(collectNodes());
     },
     enumerable: true,
     configurable: true,

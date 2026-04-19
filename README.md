@@ -46,6 +46,8 @@ Use recipe class names on any element:
 
 ```ts
 theme.css                          // full CSS string (single :root + recipes)
+theme.variablesCss                 // only :root variable blocks
+theme.recipesCss                   // only recipe rule blocks
 theme.nodes                        // full IR (CssNode[]) for custom renderers
 
 theme.colors.primary               // raw input passthrough
@@ -54,16 +56,26 @@ theme.colors.variables             // CssVariablesNode[] (variable IR)
 theme.colors.nodes                 // CssNode[] (variables + recipe rules)
 theme.colors.classes               // { solid: { primary: "brand-solid-primary", ... } }
 theme.colors.getClass(group, var)  // convenience lookup
+theme.colors.renderRecipe(g, v)    // CSS for one recipe + its variables
 theme.colors.lighten(name, pct)    // computed color helper
 theme.colors.darken(name, pct)     // computed color helper
-theme.colors.recipes               // raw recipe definitions (passthrough)
 
 theme.media.md.min                 // "@media (min-width: 768px)"
-theme.media.md.exact               // "@media (min-width: 768px) and (max-width: 1023.98px)"
 theme.media.between("sm", "lg")    // "@media (min-width: 576px) and (max-width: 1023.98px)"
 
 theme.components.getClass(g, v)    // "dt-color-solid-primary dt-type-btn-lg dt-comp-buttons-primary"
-theme.components.classes           // { buttons: { primary: { classes: [...], className: "..." } } }
+theme.components.renderRecipe(g, v, { inline: true })  // inlined values, no var(--)
+```
+
+### Delivery options
+
+Per-recipe CSS extraction with options for different delivery strategies:
+
+```ts
+theme.colors.renderRecipe("solid", "primary")                    // var(--) + variables
+theme.colors.renderRecipe("solid", "primary", { inline: true })  // resolved values only
+theme.colors.renderRecipe("solid", "primary", { scope: "mfe" })  // scoped variables for MFE
+theme.components.renderRecipe("buttons", "primary")              // cross-subsystem
 ```
 
 ## Key features

@@ -5,6 +5,8 @@ export * from "./css";
 export * from "./cssVariables";
 export * from "./cssNodes";
 export * from "./cssRenderer";
+export * from "./cssEnrich";
+export * from "./cssRender";
 export * from "./responsiveCssVariables";
 export * from "./cache";
 export * from "./tokens";

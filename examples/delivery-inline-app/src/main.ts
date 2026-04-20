@@ -42,13 +42,18 @@ app.innerHTML = `
   </p>
 
   <h2>How it works</h2>
-  <pre><code>// Get a style object — not a CSS string
-const styles = theme.components.renderRecipe("buttons", "primary", { inline: true });
-// → { background: "#4dabf7", color: "#fff", cursor: "pointer", border: "none", ... }
+  <pre><code>import { createTheme, toStyleString } from "@theme-registry/theme-kit";
 
-// Apply directly to the element
-// React: &lt;button style={styles}&gt;Primary&lt;/button&gt;
-// Vanilla: element.style.cssText = Object.entries(styles).map(...);</code></pre>
+// Get a style object — not a CSS string
+const styles = theme.components.renderRecipe("buttons", "primary", { inline: true });
+// → { background: "#4dabf7", color: "#fff", cursor: "pointer", ... }
+
+// React: apply directly
+// &lt;button style={styles}&gt;Primary&lt;/button&gt;
+
+// Vanilla: convert to style attribute string
+// &lt;button style="${"$"}{toStyleString(styles)}"&gt;Primary&lt;/button&gt;
+// → style="background: #4dabf7; color: #fff; cursor: pointer; ..."</code></pre>
 
   <h2>Live demo — no &lt;style&gt; tags injected</h2>
   <div class="row">

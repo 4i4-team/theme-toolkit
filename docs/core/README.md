@@ -623,3 +623,83 @@ These names cannot be used as property keys within a subsystem's raw input becau
 **On the breakpoint map:** `min`, `max`, `between` (collide with the media descriptor's callables).
 
 The media descriptor throws at construction if a breakpoint name collides. Subsystem-level collision guards should be added per subsystem.
+
+---
+
+## Exported utilities
+
+All utilities are importable from the package root:
+
+```ts
+import { renderToCssString, toStyleString, splitNodes, ... } from "@theme-registry/theme-kit";
+```
+
+### Rendering
+
+| Utility | Signature | Description |
+|---|---|---|
+| `renderToCssString` | `(nodes: CssNode[], options?) => string` | Render IR to CSS string. Merges adjacent `:root` variable nodes. |
+| `renderRecipeNodes` | `(rules, variables, options?) => string \| Record` | Render recipe rules with delivery options. Returns style object when `inline: true`. |
+| `renderVariablesCss` | `(nodes: CssNode[]) => string` | Render only the variable nodes from an IR. |
+| `renderRulesCss` | `(nodes: CssNode[]) => string` | Render only the rule nodes from an IR. |
+| `splitNodes` | `(nodes: CssNode[]) => { variables, rules }` | Split an IR into variable nodes and rule nodes. |
+
+### Style utilities
+
+| Utility | Signature | Description |
+|---|---|---|
+| `toStyleString` | `(styles: Record<string, string \| number>) => string` | Convert a style object to a CSS inline style string. `{ background: "#4dabf7" }` → `"background: #4dabf7"`. |
+
+### IR enrichment
+
+| Utility | Signature | Description |
+|---|---|---|
+| `enrichDeclarationsWithRefs` | `(nodes: CssNode[]) => void` | Enrich rule declarations with `ref` and `resolved` fields by cross-referencing variable nodes. Mutates in place. |
+| `collectVariableRefs` | `(rules: CssRuleNode[]) => Set<string>` | Collect the CSS variable names referenced by a set of rules. |
+| `filterVariableNodes` | `(nodes, refs) => CssVariablesNode[]` | Filter variable nodes to only include the specified variable names. |
+
+### CSS naming
+
+| Utility | Signature | Description |
+|---|---|---|
+| `sanitizeIdentifierSegment` | `(segment: string) => string` | Slugify a string for use in CSS variable/class names. `"My Color!"` → `"my-color"`. |
+| `normalizeCssVariablePrefix` | `(prefix?, fallback?) => string` | Ensure `--` prefix. `"dt"` → `"--dt"`. |
+| `normalizeCssClassPrefix` | `(classPrefix?, fallback?) => string` | Strip `--` prefix for class names. `"--dt"` → `"dt"`. |
+
+### Pipeline stages
+
+| Utility | Signature | Description |
+|---|---|---|
+| `normalizePropertyValue` | `(raw, options) => NormalizedPropertyValue` | Normalize a raw PropertyValue into base + variants + responsive. |
+| `generateTokens` | `(properties, builder) => tokens` | Generate tokens from normalized properties. |
+| `generateCssVariables` | `(tokens, options?) => CssVariableMap` | Map tokens to flat CSS variable name → value pairs. |
+| `expandResponsiveCssVariables` | `(properties, options) => CssVariablesNode[]` | Generate per-breakpoint `@media` variable override nodes. |
+| `normalizeRecipeGroup` | `(group, options?) => NormalizedRecipeGroup` | Normalize raw recipe definitions. |
+| `createRecipeVariantResolver` | `(group, interpret, options?) => resolver` | Create a cycle-safe, memoized recipe variant resolver. |
+| `generateRecipeCss` | `(group, options) => { nodes, variants }` | Generate CSS rule nodes from interpreted recipes. |
+| `assignRecipeClasses` | `(variants, options) => entries` | Assign deterministic class names to recipe variants. |
+
+### Media
+
+| Utility | Signature | Description |
+|---|---|---|
+| `buildMediaDescriptor` | `(breakpoints, resolver) => MediaDescriptor` | Build a framework-neutral media descriptor from breakpoints. |
+| `mediaQueryString` | `(options, config) => string` | Format a single media query string. |
+| `DEFAULT_BREAKPOINTS` | `Breakpoints` | Default breakpoint values: `{ sm: 576, md: 768, lg: 1024, xl: 1280 }`. |
+
+### Adapters
+
+| Utility | Signature | Description |
+|---|---|---|
+| `createCssAdapter` | `(options?) => ThemeAdapter` | Default CSS adapter. Options: `inline`, `scope`. |
+| `createStyledComponentsAdapter` | `() => ThemeAdapter` | SC adapter with tagged template media. |
+| `wrapMediaDescriptor` | `(descriptor) => WrappedMediaDescriptor` | Wrap a plain MediaDescriptor with SC tagged templates. |
+| `typographyMixin` | `(tokens, prefix, group, variant, recipes?) => css` | SC `css` block from a typography recipe. |
+
+### DTCG
+
+| Utility | Signature | Description |
+|---|---|---|
+| `fromDTCG` | `(doc, options?) => rawThemeInput` | Convert DTCG tokens to `createTheme` input. |
+| `toDTCG` | `(theme, options?) => DTCGDocument` | Export theme tokens to DTCG format. |
+| `parseDTCGDocument` | `(doc) => ResolvedDTCGToken[]` | Parse and resolve a DTCG document. |

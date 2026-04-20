@@ -1,5 +1,5 @@
 import { theme } from "./theme";
-import { createTheme } from "@4i4/theme-toolkit";
+import { createTheme, toStyleString } from "@4i4/theme-toolkit";
 import { rawTheme, options } from "./rawTheme";
 
 // --- Delivery: inline styles applied directly on elements ---
@@ -30,9 +30,7 @@ const btnDangerStyles = defaultTheme.components.renderRecipe("buttons", "danger"
 const cardStyles = defaultTheme.components.renderRecipe("cards", "default", { inline: true });
 const colorStyles = defaultTheme.colors.renderRecipe("solid", "primary", { inline: true });
 
-// Convert to style attribute string
-const toStyleAttr = (obj: Record<string, string | number>): string =>
-  Object.entries(obj).map(([k, v]) => `${k}: ${v}`).join("; ");
+// toStyleString is exported from the package
 
 const app = document.getElementById("app")!;
 app.innerHTML = `
@@ -54,11 +52,11 @@ const styles = theme.components.renderRecipe("buttons", "primary", { inline: tru
 
   <h2>Live demo — no &lt;style&gt; tags injected</h2>
   <div class="row">
-    <button style="${toStyleAttr(btnPrimaryStyles)}">Primary</button>
-    <button style="${toStyleAttr(btnDangerStyles)}">Danger</button>
+    <button style="${toStyleString(btnPrimaryStyles)}">Primary</button>
+    <button style="${toStyleString(btnDangerStyles)}">Danger</button>
   </div>
   <div class="row">
-    <div style="${toStyleAttr(cardStyles)}">
+    <div style="${toStyleString(cardStyles)}">
       <strong>Card</strong>
       <p style="margin-top:8px">Styled entirely via inline style attribute.</p>
     </div>

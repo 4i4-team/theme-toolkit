@@ -15,3 +15,4 @@ export * from "./recipes/css";
 export * from "./recipes/classes";
 export * from "./recipeResolver";
 export * from "./getters";
+export * from "./styleUtils";

@@ -303,9 +303,9 @@ theme.colors.renderRecipe("solid", "primary")
 // → :root { --dt-color--primary: #4dabf7; ... }
 // → .dt-color-solid-primary { background: var(--dt-color--primary); ... }
 
-// Inline — resolved values, no variables
+// Inline — returns a style object for direct use on elements
 theme.colors.renderRecipe("solid", "primary", { inline: true })
-// → .dt-color-solid-primary { background: #4dabf7; color: #fff; }
+// → { background: "#4dabf7", color: "#fff" }
 
 // Scoped — MFE-safe namespaced variables
 theme.colors.renderRecipe("solid", "primary", { scope: "checkout" })
@@ -325,7 +325,7 @@ theme.colors.renderRecipe("solid", "primary", { includeVariables: false })
 
 | Option | Type | Default | Effect |
 |---|---|---|---|
-| `inline` | `boolean` | `false` | Use resolved values instead of `var(--)` references |
+| `inline` | `boolean` | `false` | Return a style object (`Record<string, string \| number>`) instead of a CSS string |
 | `scope` | `string` | — | Prefix variable names for MFE isolation |
 | `includeVariables` | `boolean` | `true` | Include the `:root` variable block |
 

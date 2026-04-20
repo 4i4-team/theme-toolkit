@@ -1,13 +1,14 @@
-# Delivery: Inline Values
+# Delivery: Inline Styles
 
-Vanilla TypeScript — resolved values baked into declarations, no CSS variables.
+Vanilla TypeScript — style objects applied directly on elements, no CSS classes or variables.
 
 ## What to look for
 
 - **`src/theme.ts`** — `createCssAdapter({ inline: true })` passed to `createTheme`.
-- **`src/main.ts`** — `theme.css` has no `:root` block. All rules use resolved values directly: `background: #4dabf7` instead of `background: var(--app-colors-primary)`. Side-by-side comparison with default output.
-- **No `var(--)` anywhere** — inspect the generated CSS to confirm.
-- **When to use** — email templates (email clients don't support CSS variables), static HTML exports, legacy browser support, or any environment where `var(--)` is not available.
+- **`src/main.ts`** — `renderRecipe(group, variant, { inline: true })` returns a style object (`{ background: "#4dabf7", color: "#fff" }`), not a CSS string. Applied via `style` attribute.
+- **No `<style>` tags for theme** — all styling is inline on elements.
+- **Side-by-side comparison** — shows inline style object vs default CSS string from the same recipe.
+- **When to use** — email templates (no `<style>` support), React Native (`StyleSheet.create`), server-rendered snippets, Canvas/PDF rendering.
 
 ## Run
 

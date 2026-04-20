@@ -40,14 +40,19 @@ export const createCssAdapter = (
         return renderToCssString(nodes);
       }
       if (defaultInline) {
-        // Inline mode: enrich to get resolved values, render rules only
+        // Inline mode for full CSS: resolve values in declarations, render as CSS string (no variables)
         enrichDeclarationsWithRefs(nodes);
-        const rules = nodes.filter((n): n is CssRuleNode => n.kind === "rule");
-        const variables = nodes.filter((n): n is CssVariablesNode => n.kind === "variables");
-        return renderRecipeNodes(rules, variables, {
-          inline: true,
-          includeVariables: false,
-        });
+        const inlinedNodes: CssNode[] = nodes
+          .filter((n): n is CssRuleNode => n.kind === "rule")
+          .map(rule => ({
+            ...rule,
+            declarations: rule.declarations.map(decl =>
+              decl.resolved !== undefined
+                ? { property: decl.property, value: decl.resolved }
+                : { property: decl.property, value: decl.value },
+            ),
+          }));
+        return renderToCssString(inlinedNodes);
       }
       // Scoped mode: rename all variables and their references
       const scopedNodes = nodes.map(node => {
@@ -103,14 +108,14 @@ export const createCssAdapter = (
       rules: CssRuleNode[],
       variables: CssVariablesNode[],
       options?: RenderRecipeOptions,
-    ): string => {
+    ): string | Record<string, string | number> => {
       // Merge adapter defaults with per-call options (per-call wins)
       const merged: RenderRecipeOptions = {
         inline: options?.inline ?? defaultInline,
         scope: options?.scope ?? defaultScope,
         includeVariables: options?.includeVariables,
       };
-      return renderRecipeNodes(rules, variables, merged);
+      return renderRecipeNodes(rules, variables, merged as any);
     },
   };
 };

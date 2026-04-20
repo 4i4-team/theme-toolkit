@@ -4,8 +4,9 @@ import { collectVariableRefs, filterVariableNodes } from "./cssEnrich";
 
 export type RenderRecipeOptions = {
   /**
-   * Inline resolved values directly instead of using CSS variable references.
-   * Produces `background: #4dabf7` instead of `background: var(--app-colors-primary)`.
+   * Return a style object with resolved values for direct use on elements.
+   * `{ background: "#4dabf7", color: "#fff" }` instead of a CSS string.
+   * When true, the return type is `Record<string, string | number>`.
    */
   inline?: boolean;
 
@@ -18,31 +19,57 @@ export type RenderRecipeOptions = {
   /**
    * Include the CSS variables that the recipe references.
    * Default: true. Set to false if variables are delivered separately.
+   * Ignored when `inline: true`.
    */
   includeVariables?: boolean;
 };
 
 /**
- * Render a set of recipe rule nodes with options for inline values, scoping, etc.
+ * Render a set of recipe rule nodes.
  *
- * @param rules - The CssRuleNode[] for the recipe variant(s)
- * @param allVariableNodes - The full set of variable nodes to pull referenced vars from
- * @param options - Rendering options
- * @returns CSS string
+ * - Default: returns a CSS string with var(--) references + variable block.
+ * - `inline: true`: returns a flat style object with resolved values.
+ * - `scope`: returns a CSS string with scoped variable names.
  */
-export const renderRecipeNodes = (
+export function renderRecipeNodes(
+  rules: CssRuleNode[],
+  allVariableNodes: CssVariablesNode[],
+  options: RenderRecipeOptions & { inline: true },
+): Record<string, string | number>;
+export function renderRecipeNodes(
   rules: CssRuleNode[],
   allVariableNodes: CssVariablesNode[],
   options?: RenderRecipeOptions,
-): string => {
+): string;
+export function renderRecipeNodes(
+  rules: CssRuleNode[],
+  allVariableNodes: CssVariablesNode[],
+  options?: RenderRecipeOptions,
+): string | Record<string, string | number> {
   const inline = options?.inline ?? false;
   const scope = options?.scope;
   const includeVariables = options?.includeVariables ?? true;
 
+  // Inline: return a flat style object
+  if (inline) {
+    const styles: Record<string, string | number> = {};
+    for (const rule of rules) {
+      for (const decl of rule.declarations) {
+        if (decl.resolved !== undefined) {
+          styles[decl.property] = decl.resolved;
+        } else {
+          styles[decl.property] = decl.value;
+        }
+      }
+    }
+    return styles;
+  }
+
+  // CSS string output
   const nodes: CssNode[] = [];
 
   // Collect and transform variables
-  if (includeVariables && !inline) {
+  if (includeVariables) {
     const refs = collectVariableRefs(rules);
     let variables = filterVariableNodes(allVariableNodes, refs);
     if (scope) {
@@ -54,9 +81,6 @@ export const renderRecipeNodes = (
   // Transform rules
   for (const rule of rules) {
     const declarations = rule.declarations.map(decl => {
-      if (inline && decl.resolved !== undefined) {
-        return { property: decl.property, value: decl.resolved };
-      }
       if (scope && decl.ref) {
         const scopedRef = scopeVariableName(decl.ref, scope);
         return { property: decl.property, value: `var(${scopedRef})` };
@@ -73,7 +97,7 @@ export const renderRecipeNodes = (
   }
 
   return renderToCssString(nodes);
-};
+}
 
 /**
  * Split nodes into variables and rules.

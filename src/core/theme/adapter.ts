@@ -33,12 +33,12 @@ export interface ThemeAdapter<TMediaOutput = unknown> {
     descriptor: MediaDescriptor<TBreakpoint>,
   ): TMediaOutput;
 
-  /** Render CSS for a single recipe variant with delivery options. */
+  /** Render a single recipe variant. Returns CSS string or style object when inline. */
   renderRecipe?(
     rules: CssRuleNode[],
     variables: CssVariablesNode[],
     options?: RenderRecipeOptions,
-  ): string;
+  ): string | Record<string, string | number>;
 
   /** Attach extra utilities to the theme root. */
   extend?(theme: Record<string, unknown>): Record<string, unknown>;

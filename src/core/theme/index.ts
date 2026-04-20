@@ -120,11 +120,18 @@ type GetClassFn<TRecipes> = <G extends keyof TRecipes & string>(
 
 // --- Subsystem slice types ---
 
-type RenderRecipeFn<TRecipes> = <G extends keyof TRecipes & string>(
-  group: G,
-  variant: keyof TRecipes[G] & string,
-  options?: RenderRecipeOptions,
-) => string;
+type RenderRecipeFn<TRecipes> = {
+  <G extends keyof TRecipes & string>(
+    group: G,
+    variant: keyof TRecipes[G] & string,
+    options: RenderRecipeOptions & { inline: true },
+  ): Record<string, string | number>;
+  <G extends keyof TRecipes & string>(
+    group: G,
+    variant: keyof TRecipes[G] & string,
+    options?: RenderRecipeOptions,
+  ): string;
+};
 
 type PaletteComputedProperties<TPaletteKey extends string, TBreakpoint extends string, TRecipes = Record<string, Record<string, unknown>>> = {
   readonly tokens: Record<TPaletteKey, PaletteTokens>;
@@ -261,10 +268,10 @@ export function createTheme<
     rules: CssRuleNode[],
     variables: CssVariablesNode[],
     renderOptions?: RenderRecipeOptions,
-  ): string =>
+  ): string | Record<string, string | number> =>
     adapter.renderRecipe
       ? adapter.renderRecipe(rules, variables, renderOptions)
-      : renderRecipeNodes(rules, variables, renderOptions);
+      : renderRecipeNodes(rules, variables, renderOptions as any);
 
   const paletteHelper = createPaletteThemeHelper();
   const clone = { ...theme } as TTheme &

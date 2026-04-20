@@ -22,5 +22,5 @@ export const createStyledComponentsAdapter = (): ThemeAdapter<WrappedMediaDescri
     rules: CssRuleNode[],
     variables: CssVariablesNode[],
     options?: RenderRecipeOptions,
-  ) => renderRecipeNodes(rules, variables, options),
+  ) => renderRecipeNodes(rules, variables, options as any),
 });
